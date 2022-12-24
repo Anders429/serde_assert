@@ -3,4 +3,4 @@ name = "serde_assert"
 version = "0.1.0"
 
 [dependencies]
-serde = "1.0.151"
+serde = {version = "1.0.151", default-features = false}

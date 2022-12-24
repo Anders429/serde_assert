@@ -1,5 +1,7 @@
-use std::fmt;
-use std::fmt::Display;
+use alloc::string::String;
+use alloc::string::ToString;
+use core::fmt;
+use core::fmt::Display;
 use serde::ser;
 
 #[derive(Debug)]
@@ -40,7 +42,7 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl ser::StdError for Error {}
 
 impl ser::Error for Error {
     fn custom<T>(msg: T) -> Self where T: Display {
@@ -51,6 +53,7 @@ impl ser::Error for Error {
 #[cfg(test)]
 mod tests {
     use super::Error;
+    use alloc::format;
     use serde::ser::Error as _;
 
     #[test]
