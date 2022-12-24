@@ -1,0 +1,3 @@
+[package]
+name = "serde_assert"
+version = "0.1.0"
