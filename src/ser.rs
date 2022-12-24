@@ -1,3 +1,7 @@
+use std::fmt;
+use std::fmt::Display;
+use serde::ser;
+
 #[derive(Debug)]
 pub struct Serializer {
     is_human_readable: bool,
@@ -24,5 +28,42 @@ impl Builder {
         Serializer {
             is_human_readable: self.is_human_readable.unwrap_or(true),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Error(pub String);
+
+impl Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl ser::Error for Error {
+    fn custom<T>(msg: T) -> Self where T: Display {
+        Self(msg.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+    use serde::ser::Error as _;
+
+    #[test]
+    fn custom_error() {
+        let error = Error::custom("foo");
+
+        assert_eq!(error.0, "foo");
+    }
+
+    #[test]
+    fn display_error() {
+        let formatted = format!("{}", Error::custom("foo"));
+
+        assert_eq!(formatted, "foo");
     }
 }
