@@ -5,3 +5,7 @@ extern crate serde;
 
 pub mod de;
 pub mod ser;
+
+mod token;
+
+pub use token::Token;

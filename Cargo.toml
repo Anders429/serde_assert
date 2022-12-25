@@ -3,4 +3,7 @@ name = "serde_assert"
 version = "0.1.0"
 
 [dependencies]
+serde = {version = "1.0.151", default-features = false, features = ["alloc"]}
+
+[build-dependencies]
 serde = {version = "1.0.151", default-features = false}
