@@ -8,4 +8,4 @@ pub mod ser;
 
 mod token;
 
-pub use token::Token;
+pub use token::{Token, Tokens};

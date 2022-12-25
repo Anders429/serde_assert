@@ -91,3 +91,6 @@ pub enum Token {
 
     Unordered(&'static [&'static [Token]]),
 }
+
+#[derive(Debug)]
+pub struct Tokens(pub Vec<Token>);
