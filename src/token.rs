@@ -92,6 +92,78 @@ pub enum Token {
     Unordered(&'static [&'static [Token]]),
 }
 
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Token::Bool(a), Token::Bool(b)) => {
+                a == b
+            },
+            (Token::I8(a), Token::I8(b)) => {
+                a == b
+            },
+            (Token::I16(a), Token::I16(b)) => {
+                a == b
+            },
+            (Token::I32(a), Token::I32(b)) => {
+                a == b
+            },
+            (Token::I64(a), Token::I64(b)) => {
+                a == b
+            },
+            #[cfg(has_i128)]
+            (Token::I128(a), Token::I128(b)) => {
+                a == b
+            },
+            (Token::U8(a), Token::U8(b)) => {
+                a == b
+            },
+            (Token::U16(a), Token::U16(b)) => {
+                a == b
+            },
+            (Token::U32(a), Token::U32(b)) => {
+                a == b
+            },
+            (Token::U64(a), Token::U64(b)) => {
+                a == b
+            },
+            #[cfg(has_i128)]
+            (Token::U128(a), Token::U128(b)) => {
+                a == b
+            },
+            (Token::Char(a), Token::Char(b)) => {
+                a == b
+            }
+            (Token::Str(a), Token::Str(b)) => {
+                a == b
+            }
+            (Token::Bytes(a), Token::Bytes(b)) => {
+                a == b
+            }
+            (Token::None, Token::None) | (Token::Some, Token::Some) | (Token::Unit, Token::Unit) | (Token::SeqEnd, Token::SeqEnd) | (Token::TupleEnd, Token::TupleEnd) | (Token::TupleStructEnd, Token::TupleStructEnd) | (Token::TupleVariantEnd, Token::TupleVariantEnd) | (Token::MapEnd, Token::MapEnd) | (Token::StructEnd, Token::StructEnd) | (Token::StructVariantEnd, Token::StructVariantEnd) => true,
+            (Token::UnitStruct {name: name_a}, Token::UnitStruct {name: name_b}) | (Token::NewtypeStruct {name: name_a}, Token::NewtypeStruct {name: name_b}) => {
+                name_a == name_b
+            }
+            (Token::UnitVariant {name: name_a, variant_index: variant_index_a, variant: variant_a}, Token::UnitVariant {name: name_b, variant_index: variant_index_b, variant: variant_b}) | (Token::NewtypeVariant {name: name_a, variant_index: variant_index_a, variant: variant_a}, Token::NewtypeVariant {name: name_b, variant_index: variant_index_b, variant: variant_b}) => {
+                name_a == name_b && variant_index_a == variant_index_b && variant_a == variant_b
+            }
+            (Token::Seq {len: len_a}, Token::Seq {len: len_b}) | (Token::Map {len: len_a}, Token::Map {len: len_b}) => {
+                len_a == len_b
+            }
+            (Token::Tuple {len: len_a}, Token::Tuple {len: len_b}) => {
+                len_a == len_b
+            }
+            (Token::TupleStruct {name: name_a, len: len_a}, Token::TupleStruct {name: name_b, len: len_b}) | (Token::Struct {name: name_a, len: len_a}, Token::Struct {name: name_b, len: len_b}) => {
+                name_a == name_b && len_a == len_b
+            }
+            (Token::TupleVariant {name: name_a, variant_index: variant_index_a, variant: variant_a, len: len_a}, Token::TupleVariant {name: name_b, variant_index: variant_index_b, variant: variant_b, len: len_b}) | (Token::StructVariant {name: name_a, variant_index: variant_index_a, variant: variant_a, len: len_a}, Token::StructVariant {name: name_b, variant_index: variant_index_b, variant: variant_b, len: len_b}) => {
+                name_a == name_b && variant_index_a == variant_index_b && variant_a == variant_b && len_a == len_b
+            }
+            (Token::Unordered(tokens_a), Token::Unordered(tokens_b)) => todo!(),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Tokens(pub Vec<Token>);
 
@@ -118,117 +190,57 @@ impl PartialEq for Tokens {
             };
 
             match (self_token, other_token) {
+                (Token::Unordered(_), Token::Unordered(_)) => {
+                    if self_token != other_token {
+                        return false;
+                    }
+                },
                 (Token::Unordered(tokens), _) => {
                     todo!()
                 },
                 (_, Token::Unordered(tokens)) => {
                     todo!()
                 },
-                (Token::Bool(a), Token::Bool(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::I8(a), Token::I8(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::I16(a), Token::I16(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::I32(a), Token::I32(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::I64(a), Token::I64(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                #[cfg(has_i128)]
-                (Token::I128(a), Token::I128(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::U8(a), Token::U8(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::U16(a), Token::U16(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::U32(a), Token::U32(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::U64(a), Token::U64(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                #[cfg(has_i128)]
-                (Token::U128(a), Token::U128(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                },
-                (Token::Char(a), Token::Char(b)) => {
-                    if a != b {
-                        return false;
-                    }
+                _ => if self_token != other_token {
+                    return false;
                 }
-                (Token::Str(a), Token::Str(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                }
-                (Token::Bytes(a), Token::Bytes(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                }
-                (Token::None, Token::None) | (Token::Some, Token::Some) | (Token::Unit, Token::Unit) | (Token::SeqEnd, Token::SeqEnd) | (Token::TupleEnd, Token::TupleEnd) | (Token::TupleStructEnd, Token::TupleStructEnd) | (Token::TupleVariantEnd, Token::TupleVariantEnd) | (Token::MapEnd, Token::MapEnd) | (Token::StructEnd, Token::StructEnd) | (Token::StructVariantEnd, Token::StructVariantEnd) => {}
-                (Token::UnitStruct {name: name_a}, Token::UnitStruct {name: name_b}) | (Token::NewtypeStruct {name: name_a}, Token::NewtypeStruct {name: name_b}) => {
-                    if name_a != name_b {
-                        return false;
-                    }
-                }
-                (Token::UnitVariant {name: name_a, variant_index: variant_index_a, variant: variant_a}, Token::UnitVariant {name: name_b, variant_index: variant_index_b, variant: variant_b}) | (Token::NewtypeVariant {name: name_a, variant_index: variant_index_a, variant: variant_a}, Token::NewtypeVariant {name: name_b, variant_index: variant_index_b, variant: variant_b}) => {
-                    if name_a != name_b || variant_index_a != variant_index_b || variant_a != variant_b {
-                        return false;
-                    }
-                }
-                (Token::Seq {len: len_a}, Token::Seq {len: len_b}) | (Token::Map {len: len_a}, Token::Map {len: len_b}) => {
-                    if len_a != len_b {
-                        return false;
-                    }
-                }
-                (Token::Tuple {len: len_a}, Token::Tuple {len: len_b}) => {
-                    if len_a != len_b {
-                        return false;
-                    }
-                }
-                (Token::TupleStruct {name: name_a, len: len_a}, Token::TupleStruct {name: name_b, len: len_b}) | (Token::Struct {name: name_a, len: len_a}, Token::Struct {name: name_b, len: len_b}) => {
-                    if name_a != name_b || len_a != len_b {
-                        return false;
-                    }
-                }
-                (Token::TupleVariant {name: name_a, variant_index: variant_index_a, variant: variant_a, len: len_a}, Token::TupleVariant {name: name_b, variant_index: variant_index_b, variant: variant_b, len: len_b}) | (Token::StructVariant {name: name_a, variant_index: variant_index_a, variant: variant_a, len: len_a}, Token::StructVariant {name: name_b, variant_index: variant_index_b, variant: variant_b, len: len_b}) => {
-                    if name_a != name_b || variant_index_a != variant_index_b || variant_a != variant_b || len_a != len_b {
-                        return false;
-                    }
-                }
-                _ => return false,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Token, Tokens};
+    use alloc::vec;
+
+    #[test]
+    fn token_bool_eq() {
+        assert_eq!(Token::Bool(true), Token::Bool(true));
+    }
+
+    #[test]
+    fn token_bool_ne() {
+        assert_ne!(Token::Bool(true), Token::Bool(false));
+    }
+
+    #[test]
+    fn token_variant_ne() {
+        assert_ne!(Token::Bool(true), Token::U16(42));
+    }
+
+    #[test]
+    fn tokens_bool_eq() {
+        assert_eq!(Tokens(vec![Token::Bool(true)]), Tokens(vec![Token::Bool(true)]));
+    }
+
+    #[test]
+    fn tokens_bool_ne() {
+        assert_ne!(Tokens(vec![Token::Bool(true)]), Tokens(vec![Token::Bool(false)]));
+    }
+
+    #[test]
+    fn tokens_variant_ne() {
+        assert_ne!(Tokens(vec![Token::Bool(true)]), Tokens(vec![Token::U16(42)]));
     }
 }
