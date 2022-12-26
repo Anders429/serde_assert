@@ -642,6 +642,46 @@ mod tests {
     }
 
     #[test]
+    fn token_unordered_eq_same_order() {
+        assert_eq!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]));
+    }
+
+    #[test]
+    fn token_unordered_eq_different_order() {
+        assert_eq!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(true)]]));
+    }
+
+    #[test]
+    fn token_unordered_ne_same_order() {
+        assert_ne!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(43)]]));
+    }
+
+    #[test]
+    fn token_unordered_ne_different_order() {
+        assert_ne!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(false)]]));
+    }
+
+    #[test]
+    fn token_unordered_ne_len_shorter() {
+        assert_ne!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::Bool(true)]]));
+    }
+
+    #[test]
+    fn token_unordered_ne_len_longer() {
+        assert_ne!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::Bool(true)], &[Token::Bool(true)], &[Token::U8(42)]]));
+    }
+
+    #[test]
+    fn token_unordered_ne_different_variant() {
+        assert_ne!(Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]), Token::Unordered(&[&[Token::Bool(true)], &[Token::U16(42)]]));
+    }
+
+    #[test]
+    fn token_unordered_eq_nested() {
+        assert_eq!(Token::Unordered(&[&[Token::Bool(true)], &[Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]])]]), Token::Unordered(&[&[Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(true)]])], &[Token::Bool(true)]]));
+    }
+
+    #[test]
     fn tokens_bool_eq() {
         assert_eq!(Tokens(vec![Token::Bool(true)]), Tokens(vec![Token::Bool(true)]));
     }
