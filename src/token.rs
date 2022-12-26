@@ -1017,4 +1017,69 @@ mod tests {
             Tokens(vec![Token::U16(42)])
         );
     }
+
+    #[test]
+    fn tokens_empty_eq() {
+        assert_eq!(Tokens(vec![]), Tokens(vec![]));
+    }
+
+    #[test]
+    fn tokens_multiple_eq() {
+        assert_eq!(
+            Tokens(vec![Token::Bool(true), Token::U8(42)]),
+            Tokens(vec![Token::Bool(true), Token::U8(42)])
+        );
+    }
+
+    #[test]
+    fn tokens_multiple_ne_values() {
+        assert_ne!(
+            Tokens(vec![Token::Bool(true), Token::U8(42)]),
+            Tokens(vec![Token::Bool(false), Token::U8(42)])
+        );
+    }
+
+    #[test]
+    fn tokens_multiple_ne_shorter() {
+        assert_ne!(
+            Tokens(vec![Token::Bool(true), Token::U8(42)]),
+            Tokens(vec![Token::Bool(true)])
+        );
+    }
+
+    #[test]
+    fn tokens_multiple_ne_longer() {
+        assert_ne!(
+            Tokens(vec![Token::Bool(true), Token::U8(42)]),
+            Tokens(vec![Token::Bool(true), Token::U8(42), Token::U8(42)])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_both_sides_eq() {
+        assert_eq!(
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+            Tokens(vec![Token::Unordered(&[
+                &[Token::U8(42)],
+                &[Token::Bool(true)]
+            ])])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_both_sides_ne() {
+        assert_ne!(
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+            Tokens(vec![Token::Unordered(&[
+                &[Token::U8(42)],
+                &[Token::Bool(false)]
+            ])])
+        );
+    }
 }
