@@ -6,13 +6,13 @@ use alloc::vec;
 use core::fmt;
 use core::fmt::Display;
 use serde::ser;
+use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use serde::ser::SerializeStruct;
+use serde::ser::SerializeStructVariant;
 use serde::ser::SerializeTuple;
 use serde::ser::SerializeTupleStruct;
 use serde::ser::SerializeTupleVariant;
-use serde::ser::SerializeMap;
-use serde::ser::SerializeStruct;
-use serde::ser::SerializeStructVariant;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -102,7 +102,10 @@ impl<'a> ser::Serializer for &'a Serializer {
         Ok(Tokens(vec![Token::None]))
     }
 
-    fn serialize_some<T>(self, value: &T) -> Result<Tokens, Error> where T: Serialize + ?Sized {
+    fn serialize_some<T>(self, value: &T) -> Result<Tokens, Error>
+    where
+        T: Serialize + ?Sized,
+    {
         let mut tokens = Tokens(vec![Token::Some]);
         tokens.0.extend(value.serialize(self)?.0);
         Ok(tokens)
@@ -113,12 +116,15 @@ impl<'a> ser::Serializer for &'a Serializer {
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> Result<Tokens, Error> {
-        Ok(Tokens(vec![Token::UnitStruct {
-            name,
-        }]))
+        Ok(Tokens(vec![Token::UnitStruct { name }]))
     }
 
-    fn serialize_unit_variant(self, name: &'static str, variant_index: u32, variant: &'static str) -> Result<Tokens, Error> {
+    fn serialize_unit_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Tokens, Error> {
         Ok(Tokens(vec![Token::UnitVariant {
             name,
             variant_index,
@@ -126,15 +132,25 @@ impl<'a> ser::Serializer for &'a Serializer {
         }]))
     }
 
-    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Tokens, Error> where T: Serialize + ?Sized {
-        let mut tokens = Tokens(vec![Token::NewtypeStruct {
-            name,
-        }]);
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Tokens, Error>
+    where
+        T: Serialize + ?Sized,
+    {
+        let mut tokens = Tokens(vec![Token::NewtypeStruct { name }]);
         tokens.0.extend(value.serialize(self)?.0);
         Ok(tokens)
     }
 
-    fn serialize_newtype_variant<T>(self, name: &'static str, variant_index: u32, variant: &'static str, value: &T) -> Result<Tokens, Error> where T: Serialize + ?Sized {
+    fn serialize_newtype_variant<T>(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Tokens, Error>
+    where
+        T: Serialize + ?Sized,
+    {
         let mut tokens = Tokens(vec![Token::NewtypeVariant {
             name,
             variant_index,
@@ -146,7 +162,7 @@ impl<'a> ser::Serializer for &'a Serializer {
 
     fn serialize_seq(self, len: Option<usize>) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::Seq {len,}]),
+            tokens: Tokens(vec![Token::Seq { len }]),
 
             serializer: self,
         })
@@ -154,23 +170,38 @@ impl<'a> ser::Serializer for &'a Serializer {
 
     fn serialize_tuple(self, len: usize) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::Tuple {len,}]),
+            tokens: Tokens(vec![Token::Tuple { len }]),
 
             serializer: self,
         })
     }
 
-    fn serialize_tuple_struct(self, name: &'static str, len: usize) -> Result<CompoundSerializer<'a>, Error> {
+    fn serialize_tuple_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::TupleStruct {name, len,}]),
+            tokens: Tokens(vec![Token::TupleStruct { name, len }]),
 
             serializer: self,
         })
     }
 
-    fn serialize_tuple_variant(self, name: &'static str, variant_index: u32, variant: &'static str, len: usize) -> Result<CompoundSerializer<'a>, Error> {
+    fn serialize_tuple_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::TupleVariant {name, variant_index, variant, len,}]),
+            tokens: Tokens(vec![Token::TupleVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            }]),
 
             serializer: self,
         })
@@ -178,29 +209,47 @@ impl<'a> ser::Serializer for &'a Serializer {
 
     fn serialize_map(self, len: Option<usize>) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::Map {len,}]),
+            tokens: Tokens(vec![Token::Map { len }]),
 
             serializer: self,
         })
     }
 
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<CompoundSerializer<'a>, Error> {
+    fn serialize_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::Struct {name, len}]),
+            tokens: Tokens(vec![Token::Struct { name, len }]),
 
             serializer: self,
         })
     }
 
-    fn serialize_struct_variant(self, name: &'static str, variant_index: u32, variant: &'static str, len: usize) -> Result<CompoundSerializer<'a>, Error> {
+    fn serialize_struct_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<CompoundSerializer<'a>, Error> {
         Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::StructVariant {name, variant_index, variant, len}]),
+            tokens: Tokens(vec![Token::StructVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            }]),
 
             serializer: self,
         })
     }
 
-    fn collect_str<T>(self, value: &T) -> Result<Tokens, Error> where T: Display + ?Sized {
+    fn collect_str<T>(self, value: &T) -> Result<Tokens, Error>
+    where
+        T: Display + ?Sized,
+    {
         Ok(Tokens(vec![Token::Str(value.to_string())]))
     }
 
@@ -244,7 +293,10 @@ impl SerializeSeq for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
@@ -259,7 +311,10 @@ impl SerializeTuple for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
@@ -274,7 +329,10 @@ impl SerializeTupleStruct for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
@@ -289,7 +347,10 @@ impl SerializeTupleVariant for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
@@ -304,12 +365,18 @@ impl SerializeMap for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_key<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_key<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
 
-    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
     }
@@ -324,7 +391,10 @@ impl SerializeStruct for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.push(Token::Field(key));
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
@@ -345,7 +415,10 @@ impl SerializeStructVariant for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error> where T: Serialize + ?Sized {
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
         self.tokens.0.push(Token::Field(key));
         self.tokens.0.extend(value.serialize(self.serializer)?.0);
         Ok(())
@@ -374,17 +447,20 @@ impl Display for Error {
 impl ser::StdError for Error {}
 
 impl ser::Error for Error {
-    fn custom<T>(msg: T) -> Self where T: Display {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
         Self(msg.to_string())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Serializer, Error};
+    use super::{Error, Serializer};
     use alloc::format;
-    use serde::ser::Serializer as _;
     use serde::ser::Error as _;
+    use serde::ser::Serializer as _;
 
     #[test]
     fn is_human_readable_default() {
