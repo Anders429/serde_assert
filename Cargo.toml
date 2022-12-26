@@ -1,8 +1,10 @@
 [package]
 name = "serde_assert"
 version = "0.1.0"
+edition = "2018"
 
 [dependencies]
+hashbrown = "0.13.1"
 serde = {version = "1.0.151", default-features = false, features = ["alloc"]}
 
 [build-dependencies]
