@@ -1,5 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::iter;
 use hashbrown::HashSet;
 
 #[derive(Debug)]
@@ -236,6 +237,64 @@ impl PartialEq for Token {
 #[derive(Debug)]
 pub struct Tokens(pub Vec<Token>);
 
+fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -> bool
+where
+    I: Iterator<Item = &'a Token>,
+{
+    /// A current state in the search.
+    struct State {
+        set_index: usize,
+        token_index: usize,
+        to_visit: Vec<usize>,
+    }
+
+    let mut current = (0..unordered_tokens.len())
+        .map(|i| State {
+            set_index: i,
+            token_index: 0,
+            to_visit: (0..unordered_tokens.len()).filter(|&j| i != j).collect(),
+        })
+        .collect::<Vec<_>>();
+
+    loop {
+        if current.len() == 0 {
+            return false;
+        }
+
+        if let Some(token) = tokens_iter.next() {
+            let mut new_current = Vec::new();
+            for mut state in current {
+                if &unordered_tokens[state.set_index][state.token_index] == token {
+                    state.token_index += 1;
+                    if state.token_index == unordered_tokens[state.set_index].len() {
+                        // End condition.
+                        if state.to_visit.is_empty() {
+                            return true;
+                        }
+                        for &new_index in &state.to_visit {
+                            new_current.push(State {
+                                set_index: new_index,
+                                token_index: 0,
+                                to_visit: state
+                                    .to_visit
+                                    .iter()
+                                    .copied()
+                                    .filter(|&i| i != new_index)
+                                    .collect(),
+                            });
+                        }
+                    } else {
+                        new_current.push(state);
+                    }
+                }
+            }
+            current = new_current;
+        } else {
+            return false;
+        };
+    }
+}
+
 impl PartialEq for Tokens {
     fn eq(&self, other: &Self) -> bool {
         let mut self_iter = self.0.iter();
@@ -243,6 +302,7 @@ impl PartialEq for Tokens {
 
         loop {
             // Obtain next tokens, or return if no tokens are available.
+            // TODO: Check if `Unordered` variants are empty.
             let self_token = match self_iter.next() {
                 Some(token) => token,
                 None => {
@@ -265,10 +325,10 @@ impl PartialEq for Tokens {
                     }
                 }
                 (Token::Unordered(tokens), _) => {
-                    todo!()
+                    consume_unordered(tokens, iter::once(other_token).chain(&mut other_iter));
                 }
                 (_, Token::Unordered(tokens)) => {
-                    todo!()
+                    consume_unordered(tokens, iter::once(self_token).chain(&mut self_iter));
                 }
                 _ => {
                     if self_token != other_token {
@@ -1080,6 +1140,84 @@ mod tests {
                 &[Token::U8(42)],
                 &[Token::Bool(false)]
             ])])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_left_eq_same_order() {
+        assert_eq!(
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+            Tokens(vec![Token::Bool(true), Token::U8(42)])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_left_eq_different_order() {
+        assert_eq!(
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+            Tokens(vec![Token::U8(42), Token::Bool(true)])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_left_eq_within_other_tokens() {
+        assert_eq!(
+            Tokens(vec![
+                Token::Char('a'),
+                Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
+                Token::I16(-42)
+            ]),
+            Tokens(vec![
+                Token::Char('a'),
+                Token::U8(42),
+                Token::Bool(true),
+                Token::I16(-42)
+            ])
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_right_eq_same_order() {
+        assert_eq!(
+            Tokens(vec![Token::Bool(true), Token::U8(42)]),
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_right_eq_different_order() {
+        assert_eq!(
+            Tokens(vec![Token::U8(42), Token::Bool(true)]),
+            Tokens(vec![Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::U8(42)]
+            ])]),
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_right_eq_within_other_tokens() {
+        assert_eq!(
+            Tokens(vec![
+                Token::Char('a'),
+                Token::U8(42),
+                Token::Bool(true),
+                Token::I16(-42)
+            ]),
+            Tokens(vec![
+                Token::Char('a'),
+                Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
+                Token::I16(-42)
+            ]),
         );
     }
 }
