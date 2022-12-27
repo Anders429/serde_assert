@@ -241,6 +241,8 @@ fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -
 where
     I: Iterator<Item = &'a Token>,
 {
+    // TODO: Handle nested Unordered tokens.
+
     /// A current state in the search.
     #[derive(Debug)]
     struct State {
@@ -303,7 +305,7 @@ impl PartialEq for Tokens {
 
         loop {
             // Obtain next tokens, or return if no tokens are available.
-            let mut self_token;
+            let self_token;
             loop {
                 if let Some(token) = self_iter.next() {
                     if let Token::Unordered(tokens) = token {
@@ -322,7 +324,7 @@ impl PartialEq for Tokens {
                 }
             }
 
-            let mut other_token;
+            let other_token;
             loop {
                 if let Some(token) = other_iter.next() {
                     if let Token::Unordered(tokens) = token {

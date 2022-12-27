@@ -458,9 +458,193 @@ impl ser::Error for Error {
 #[cfg(test)]
 mod tests {
     use super::{Error, Serializer};
-    use alloc::format;
+    use crate::{Token, Tokens};
+    use alloc::{borrow::ToOwned, format, vec};
+    use claims::assert_ok_eq;
     use serde::ser::Error as _;
+    use serde::ser::Serialize;
     use serde::ser::Serializer as _;
+    use serde_bytes::Bytes;
+    use serde_derive::Serialize;
+
+    #[test]
+    fn serialize_bool() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+    }
+
+    #[test]
+    fn serialize_i8() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42i8.serialize(&serializer), Tokens(vec![Token::I8(42)]));
+    }
+
+    #[test]
+    fn serialize_i16() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42i16.serialize(&serializer), Tokens(vec![Token::I16(42)]));
+    }
+
+    #[test]
+    fn serialize_i32() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42i32.serialize(&serializer), Tokens(vec![Token::I32(42)]));
+    }
+
+    #[test]
+    fn serialize_i64() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42i64.serialize(&serializer), Tokens(vec![Token::I64(42)]));
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn serialize_i128() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42i128.serialize(&serializer), Tokens(vec![Token::I128(42)]));
+    }
+
+    #[test]
+    fn serialize_u8() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42u8.serialize(&serializer), Tokens(vec![Token::U8(42)]));
+    }
+
+    #[test]
+    fn serialize_u16() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42u16.serialize(&serializer), Tokens(vec![Token::U16(42)]));
+    }
+
+    #[test]
+    fn serialize_u32() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42u32.serialize(&serializer), Tokens(vec![Token::U32(42)]));
+    }
+
+    #[test]
+    fn serialize_u64() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42u64.serialize(&serializer), Tokens(vec![Token::U64(42)]));
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn serialize_u128() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42u128.serialize(&serializer), Tokens(vec![Token::U128(42)]));
+    }
+
+    #[test]
+    fn serialize_f32() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42f32.serialize(&serializer), Tokens(vec![Token::F32(42.)]));
+    }
+
+    #[test]
+    fn serialize_f64() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(42f64.serialize(&serializer), Tokens(vec![Token::F64(42.)]));
+    }
+
+    #[test]
+    fn serialize_char() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!('a'.serialize(&serializer), Tokens(vec![Token::Char('a')]));
+    }
+
+    #[test]
+    fn serialize_str() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            "a".serialize(&serializer),
+            Tokens(vec![Token::Str("a".to_owned())])
+        );
+    }
+
+    #[test]
+    fn serialize_bytes() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Bytes::new(b"a").serialize(&serializer),
+            Tokens(vec![Token::Bytes(b"a".to_vec())])
+        );
+    }
+
+    #[test]
+    fn serialize_none() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Option::<()>::None.serialize(&serializer),
+            Tokens(vec![Token::None])
+        );
+    }
+
+    #[test]
+    fn serialize_some() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Some(true).serialize(&serializer),
+            Tokens(vec![Token::Some, Token::Bool(true)])
+        );
+    }
+
+    #[test]
+    fn serialize_unit() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(().serialize(&serializer), Tokens(vec![Token::Unit]));
+    }
+
+    #[test]
+    fn serialize_unit_struct() {
+        #[derive(Serialize)]
+        struct Unit;
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Unit.serialize(&serializer),
+            Tokens(vec![Token::UnitStruct { name: "Unit" }])
+        );
+    }
+
+    #[test]
+    fn serialize_unit_variant() {
+        #[derive(Serialize)]
+        enum Unit {
+            Variant,
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Unit::Variant.serialize(&serializer),
+            Tokens(vec![Token::UnitVariant {
+                name: "Unit",
+                variant_index: 0,
+                variant: "Variant"
+            }])
+        );
+    }
 
     #[test]
     fn is_human_readable_default() {
