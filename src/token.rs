@@ -208,6 +208,9 @@ impl PartialEq for Token {
                     && variant_a == variant_b
                     && len_a == len_b
             }
+            (Token::Field(a), Token::Field(b)) | (Token::SkippedField(a), Token::SkippedField(b)) => {
+                a == b
+            }
             (Token::Unordered(tokens_a), Token::Unordered(tokens_b)) => {
                 if tokens_a.len() != tokens_b.len() {
                     return false;
@@ -1002,6 +1005,26 @@ mod tests {
     #[test]
     fn token_struct_variant_end_eq() {
         assert_eq!(Token::StructVariantEnd, Token::StructVariantEnd);
+    }
+
+    #[test]
+    fn token_field_eq() {
+        assert_eq!(Token::Field("a"), Token::Field("a"));
+    }
+
+    #[test]
+    fn token_field_ne() {
+        assert_ne!(Token::Field("a"), Token::Field("b"));
+    }
+
+    #[test]
+    fn token_skipped_field_eq() {
+        assert_eq!(Token::SkippedField("a"), Token::SkippedField("a"));
+    }
+
+    #[test]
+    fn token_skipped_field_ne() {
+        assert_ne!(Token::SkippedField("a"), Token::SkippedField("b"));
     }
 
     #[test]

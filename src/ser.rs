@@ -459,8 +459,9 @@ impl ser::Error for Error {
 mod tests {
     use super::{Error, Serializer};
     use crate::{Token, Tokens};
-    use alloc::{borrow::ToOwned, format, vec};
+    use alloc::{borrow::ToOwned, format, string::String, vec};
     use claims::assert_ok_eq;
+    use hashbrown::{HashMap, HashSet};
     use serde::ser::Error as _;
     use serde::ser::Serialize;
     use serde::ser::Serializer as _;
@@ -644,6 +645,272 @@ mod tests {
                 variant: "Variant"
             }])
         );
+    }
+
+    #[test]
+    fn serialize_newtype_struct() {
+        #[derive(Serialize)]
+        struct Newtype(bool);
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Newtype(false).serialize(&serializer),
+            Tokens(vec![Token::NewtypeStruct { name: "Newtype" }, Token::Bool(false)])
+        );
+    }
+
+    #[test]
+    fn serialize_newtype_variant() {
+        #[derive(Serialize)]
+        enum Newtype {
+            Variant(bool),
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Newtype::Variant(false).serialize(&serializer),
+            Tokens(vec![Token::NewtypeVariant {
+                name: "Newtype",
+                variant_index: 0,
+                variant: "Variant"
+            }, Token::Bool(false)])
+        );
+    }
+
+    #[test]
+    fn serialize_seq() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            vec![1i8, 2i8, 3i8].serialize(&serializer),
+            Tokens(vec![Token::Seq {len: Some(3)}, Token::I8(1), Token::I8(2), Token::I8(3), Token::SeqEnd]),
+        );
+    }
+
+    #[test]
+    fn serialize_seq_unordered() {
+        let serializer = Serializer::builder().build();
+
+        let mut set = HashSet::new();
+        set.insert('a');
+        set.insert('b');
+        set.insert('c');
+
+        assert_ok_eq!(
+            set.serialize(&serializer),
+            Tokens(vec![
+                Token::Seq {len: Some(3)},
+                Token::Unordered(&[
+                    &[Token::Char('a')],
+                    &[Token::Char('b')],
+                    &[Token::Char('c')],
+                ]),
+                Token::SeqEnd,
+            ])
+        );
+    }
+
+    #[test]
+    fn serialize_tuple() {
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            (1i8, 2i16, 3i32).serialize(&serializer),
+            Tokens(vec![Token::Tuple {len: 3}, Token::I8(1), Token::I16(2), Token::I32(3), Token::TupleEnd]),
+        );
+    }
+
+    #[test]
+    fn serialize_tuple_struct() {
+        #[derive(Serialize)]
+        struct TupleStruct(i8, i16, i32);
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            TupleStruct(1i8, 2i16, 3i32).serialize(&serializer),
+            Tokens(vec![Token::TupleStruct {name: "TupleStruct", len: 3}, Token::I8(1), Token::I16(2), Token::I32(3), Token::TupleStructEnd]),
+        );
+    }
+
+    #[test]
+    fn serialize_tuple_variant() {
+        #[derive(Serialize)]
+        enum Tuple {
+            Variant(i8, i16, i32),
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            Tuple::Variant(1i8, 2i16, 3i32).serialize(&serializer),
+            Tokens(vec![Token::TupleVariant {name: "Tuple", variant_index: 0, variant: "Variant", len: 3}, Token::I8(1), Token::I16(2), Token::I32(3), Token::TupleVariantEnd]),
+        );
+    }
+
+    #[test]
+    fn serialize_map() {
+        let serializer = Serializer::builder().build();
+
+        let mut map = HashMap::new();
+        map.insert(1i8, 'a');
+        map.insert(2i8, 'b');
+        map.insert(3i8, 'c');
+
+        assert_ok_eq!(
+            map.serialize(&serializer),
+            Tokens(vec![
+                Token::Map {len: Some(3)},
+                Token::Unordered(&[
+                    &[Token::I8(1), Token::Char('a')],
+                    &[Token::I8(2), Token::Char('b')],
+                    &[Token::I8(3), Token::Char('c')],
+                ]),
+                Token::MapEnd,
+            ])
+        );
+    }
+
+    #[test]
+    fn serialize_struct() {
+        #[derive(Serialize)]
+        struct Struct {
+            a: bool,
+            b: u16,
+            c: String,
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(Struct {
+            a: true,
+            b: 42,
+            c: "foo".to_owned(),
+        }.serialize(&serializer),
+        Tokens(vec![
+            Token::Struct {
+                name: "Struct",
+                len: 3,
+            },
+            Token::Field("a"),
+            Token::Bool(true),
+            Token::Field("b"),
+            Token::U16(42),
+            Token::Field("c"),
+            Token::Str("foo".to_owned()),
+            Token::StructEnd,
+        ]));
+    }
+
+    #[test]
+    fn serialize_struct_skipped_field() {
+        fn skip<T>(_: &T) -> bool {
+            true
+        }
+
+        #[derive(Serialize)]
+        struct Struct {
+            a: bool,
+            #[serde(skip_serializing_if = "skip")]
+            b: u16,
+            c: String,
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(Struct {
+            a: true,
+            b: 42,
+            c: "foo".to_owned(),
+        }.serialize(&serializer),
+        Tokens(vec![
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Field("a"),
+            Token::Bool(true),
+            Token::SkippedField("b"),
+            Token::Field("c"),
+            Token::Str("foo".to_owned()),
+            Token::StructEnd,
+        ]));
+    }
+
+    #[test]
+    fn serialize_struct_variant() {
+        #[derive(Serialize)]
+        enum Struct {
+            Variant {
+                a: bool,
+                b: u16,
+                c: String,
+            },
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(Struct::Variant {
+            a: true,
+            b: 42,
+            c: "foo".to_owned(),
+        }.serialize(&serializer),
+        Tokens(vec![
+            Token::StructVariant {
+                name: "Struct",
+                variant_index: 0,
+                variant: "Variant",
+                len: 3,
+            },
+            Token::Field("a"),
+            Token::Bool(true),
+            Token::Field("b"),
+            Token::U16(42),
+            Token::Field("c"),
+            Token::Str("foo".to_owned()),
+            Token::StructVariantEnd,
+        ]));
+    }
+
+    #[test]
+    fn serialize_struct_variant_skipped_field() {
+        fn skip<T>(_: &T) -> bool {
+            true
+        }
+
+        #[derive(Serialize)]
+        enum Struct {
+            Variant {
+                a: bool,
+                #[serde(skip_serializing_if = "skip")]
+                b: u16,
+                c: String,
+            },
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(Struct::Variant {
+            a: true,
+            b: 42,
+            c: "foo".to_owned(),
+        }.serialize(&serializer),
+        Tokens(vec![
+            Token::StructVariant {
+                name: "Struct",
+                variant_index: 0,
+                variant: "Variant",
+                len: 2,
+            },
+            Token::Field("a"),
+            Token::Bool(true),
+            Token::SkippedField("b"),
+            Token::Field("c"),
+            Token::Str("foo".to_owned()),
+            Token::StructVariantEnd,
+        ]));
     }
 
     #[test]
