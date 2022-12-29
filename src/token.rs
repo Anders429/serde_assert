@@ -2,8 +2,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::iter;
 use hashbrown::HashSet;
+use serde::de::Unexpected;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Token {
     Bool(bool),
     I8(i8),
@@ -208,9 +209,8 @@ impl PartialEq for Token {
                     && variant_a == variant_b
                     && len_a == len_b
             }
-            (Token::Field(a), Token::Field(b)) | (Token::SkippedField(a), Token::SkippedField(b)) => {
-                a == b
-            }
+            (Token::Field(a), Token::Field(b))
+            | (Token::SkippedField(a), Token::SkippedField(b)) => a == b,
             (Token::Unordered(tokens_a), Token::Unordered(tokens_b)) => {
                 if tokens_a.len() != tokens_b.len() {
                     return false;
@@ -237,7 +237,53 @@ impl PartialEq for Token {
     }
 }
 
-#[derive(Debug)]
+impl<'a> From<&'a Token> for Unexpected<'a> {
+    fn from(token: &'a Token) -> Self {
+        match token {
+            Token::Bool(v) => Unexpected::Bool(*v),
+            Token::I8(v) => Unexpected::Signed((*v).into()),
+            Token::I16(v) => Unexpected::Signed((*v).into()),
+            Token::I32(v) => Unexpected::Signed((*v).into()),
+            Token::I64(v) => Unexpected::Signed((*v).into()),
+            #[cfg(has_i128)]
+            Token::I128(v) => todo!(),
+            Token::U8(v) => Unexpected::Unsigned((*v).into()),
+            Token::U16(v) => Unexpected::Unsigned((*v).into()),
+            Token::U32(v) => Unexpected::Unsigned((*v).into()),
+            Token::U64(v) => Unexpected::Unsigned((*v).into()),
+            #[cfg(has_i128)]
+            Token::U128(v) => todo!(),
+            Token::F32(v) => Unexpected::Float((*v).into()),
+            Token::F64(v) => Unexpected::Float((*v).into()),
+            Token::Char(v) => Unexpected::Char(*v),
+            Token::Str(v) => Unexpected::Str(v),
+            Token::Bytes(v) => Unexpected::Bytes(v),
+            Token::Some | Token::None => Unexpected::Option,
+            Token::Unit | Token::UnitStruct { .. } => Unexpected::Unit,
+            Token::UnitVariant { .. } => Unexpected::UnitVariant,
+            Token::NewtypeStruct { .. } => Unexpected::NewtypeStruct,
+            Token::NewtypeVariant { .. } => Unexpected::NewtypeVariant,
+            Token::Seq { .. } | Token::Tuple { .. } => Unexpected::Seq,
+            Token::SeqEnd => todo!(),
+            Token::TupleEnd => todo!(),
+            Token::TupleStruct { .. } => todo!(),
+            Token::TupleStructEnd => todo!(),
+            Token::TupleVariant { .. } => Unexpected::TupleVariant,
+            Token::TupleVariantEnd => todo!(),
+            Token::Map { .. } => Unexpected::Map,
+            Token::MapEnd => todo!(),
+            Token::Field(v) => todo!(),
+            Token::SkippedField(v) => todo!(),
+            Token::Struct { .. } => todo!(),
+            Token::StructEnd => todo!(),
+            Token::StructVariant { .. } => Unexpected::StructVariant,
+            Token::StructVariantEnd => todo!(),
+            Token::Unordered(tokens) => todo!(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Tokens(pub Vec<Token>);
 
 fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -> bool
