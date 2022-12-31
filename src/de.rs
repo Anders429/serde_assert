@@ -1,8 +1,14 @@
 use crate::{Token, Tokens};
-use alloc::{string::{String, ToString}, vec};
+use alloc::{
+    string::{String, ToString},
+    vec,
+};
 use core::{fmt, fmt::Display};
-use serde::{de, de::{Expected, Unexpected}};
 use serde::de::Error as _;
+use serde::{
+    de,
+    de::{Expected, Unexpected},
+};
 
 #[derive(Debug)]
 pub struct Deserializer {
@@ -346,7 +352,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Seq {len} = token {
+        if let Token::Seq { len } = token {
             visitor.visit_seq(SeqAccess {
                 deserializer: self,
 
@@ -365,7 +371,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Tuple {len: token_len} = token {
+        if let Token::Tuple { len: token_len } = token {
             if len != token_len {
                 Err(Self::Error::invalid_length(token_len, &visitor))
             } else {
@@ -452,7 +458,13 @@ impl Deserializer {
 
     fn next_token(&mut self) -> Result<Token, Error> {
         loop {
-            let token = self.revisited_token.take().into_iter().chain(&mut self.tokens).next().ok_or(Error::EndOfTokens)?;
+            let token = self
+                .revisited_token
+                .take()
+                .into_iter()
+                .chain(&mut self.tokens)
+                .next()
+                .ok_or(Error::EndOfTokens)?;
             if !matches!(token, Token::SkippedField(_)) {
                 return Ok(token);
             }
@@ -477,8 +489,9 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-        where
-            T: de::DeserializeSeed<'de> {
+    where
+        T: de::DeserializeSeed<'de>,
+    {
         if self.ended {
             return Ok(None);
         }
@@ -611,18 +624,24 @@ impl de::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Token, Tokens};
     use super::{Deserializer, Error};
+    use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, format, vec};
     use claims::assert_err_eq;
-    use serde::de::{Deserialize, IgnoredAny};
     use serde::de::Error as _;
+    use serde::de::{Deserialize, IgnoredAny};
 
     #[test]
     fn deserialize_any_not_self_describing() {
-        let mut deserializer = Deserializer::builder().tokens(Tokens(vec![Token::Bool(true)])).self_describing(false).build();
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .self_describing(false)
+            .build();
 
-        assert_err_eq!(IgnoredAny::deserialize(&mut deserializer), Error::NotSelfDescribing);
+        assert_err_eq!(
+            IgnoredAny::deserialize(&mut deserializer),
+            Error::NotSelfDescribing
+        );
     }
 
     #[test]
@@ -642,36 +661,63 @@ mod tests {
 
     #[test]
     fn display_error_invalid_type() {
-        assert_eq!(format!("{}", Error::invalid_type((&Token::Bool(true)).into(), &"foo")), "invalid type: expected foo, found boolean `true`");
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_type((&Token::Bool(true)).into(), &"foo")
+            ),
+            "invalid type: expected foo, found boolean `true`"
+        );
     }
 
     #[test]
     fn display_error_invalid_value() {
-        assert_eq!(format!("{}", Error::invalid_value((&Token::Bool(true)).into(), &"foo")), "invalid value: expected foo, found boolean `true`");
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_value((&Token::Bool(true)).into(), &"foo")
+            ),
+            "invalid value: expected foo, found boolean `true`"
+        );
     }
 
     #[test]
     fn display_error_invalid_length() {
-        assert_eq!(format!("{}", Error::invalid_length(42, &"foo")), "invalid length 42, expected foo");
+        assert_eq!(
+            format!("{}", Error::invalid_length(42, &"foo")),
+            "invalid length 42, expected foo"
+        );
     }
 
     #[test]
     fn display_error_unknown_variant() {
-        assert_eq!(format!("{}", Error::unknown_variant("foo", &["bar", "baz"])), "unknown variant foo, expected one of [\"bar\", \"baz\"]");
+        assert_eq!(
+            format!("{}", Error::unknown_variant("foo", &["bar", "baz"])),
+            "unknown variant foo, expected one of [\"bar\", \"baz\"]"
+        );
     }
 
     #[test]
     fn display_error_unknown_field() {
-        assert_eq!(format!("{}", Error::unknown_field("foo", &["bar", "baz"])), "unknown field foo, expected one of [\"bar\", \"baz\"]");
+        assert_eq!(
+            format!("{}", Error::unknown_field("foo", &["bar", "baz"])),
+            "unknown field foo, expected one of [\"bar\", \"baz\"]"
+        );
     }
 
     #[test]
     fn display_error_missing_field() {
-        assert_eq!(format!("{}", Error::missing_field("foo")), "missing field foo");
+        assert_eq!(
+            format!("{}", Error::missing_field("foo")),
+            "missing field foo"
+        );
     }
 
     #[test]
     fn display_error_duplicate_field() {
-        assert_eq!(format!("{}", Error::duplicate_field("foo")), "duplicate field foo");
+        assert_eq!(
+            format!("{}", Error::duplicate_field("foo")),
+            "duplicate field foo"
+        );
     }
 }
