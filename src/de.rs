@@ -8,6 +8,8 @@ use serde::de::Error as _;
 pub struct Deserializer {
     tokens: vec::IntoIter<Token>,
 
+    revisited_token: Option<Token>,
+
     is_human_readable: bool,
     self_describing: bool,
 }
@@ -52,8 +54,22 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             } => todo!(),
             Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
             Token::NewtypeVariant { .. } => todo!(),
-            Token::Seq { len } => todo!(),
-            Token::Tuple { len } => todo!(),
+            Token::Seq { len } => visitor.visit_seq(SeqAccess {
+                deserializer: self,
+
+                len,
+
+                end_token: Token::SeqEnd,
+                ended: false,
+            }),
+            Token::Tuple { len } => visitor.visit_seq(SeqAccess {
+                deserializer: self,
+
+                len: Some(len),
+
+                end_token: Token::TupleEnd,
+                ended: false,
+            }),
             Token::TupleStruct { .. } => todo!(),
             Token::TupleVariant { .. } => todo!(),
             Token::Map { .. } => todo!(),
@@ -329,14 +345,42 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Seq {len} = token {
+            visitor.visit_seq(SeqAccess {
+                deserializer: self,
+
+                len,
+
+                end_token: Token::SeqEnd,
+                ended: false,
+            })
+        } else {
+            Err(Self::Error::invalid_value((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Tuple {len: token_len} = token {
+            if len != token_len {
+                Err(Self::Error::invalid_length(token_len, &visitor))
+            } else {
+                visitor.visit_seq(SeqAccess {
+                    deserializer: self,
+
+                    len: Some(len),
+
+                    end_token: Token::TupleEnd,
+                    ended: false,
+                })
+            }
+        } else {
+            Err(Self::Error::invalid_value((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_tuple_struct<V>(
@@ -408,11 +452,47 @@ impl Deserializer {
 
     fn next_token(&mut self) -> Result<Token, Error> {
         loop {
-            let token = self.tokens.next().ok_or(Error::EndOfTokens)?;
+            let token = self.revisited_token.take().into_iter().chain(&mut self.tokens).next().ok_or(Error::EndOfTokens)?;
             if !matches!(token, Token::SkippedField(_)) {
                 return Ok(token);
             }
         }
+    }
+
+    fn revisit_token(&mut self, token: Token) {
+        self.revisited_token = Some(token);
+    }
+}
+
+pub struct SeqAccess<'a> {
+    deserializer: &'a mut Deserializer,
+
+    len: Option<usize>,
+
+    end_token: Token,
+    ended: bool,
+}
+
+impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+        where
+            T: de::DeserializeSeed<'de> {
+        if self.ended {
+            return Ok(None);
+        }
+        let token = self.deserializer.next_token()?;
+        if token == self.end_token {
+            self.ended = true;
+            return Ok(None);
+        }
+        self.deserializer.revisit_token(token);
+        seed.deserialize(&mut *self.deserializer).map(Some)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        self.len
     }
 }
 
@@ -449,13 +529,15 @@ impl Builder {
                 .0
                 .into_iter(),
 
+            revisited_token: None,
+
             is_human_readable: self.is_human_readable.unwrap_or(true),
             self_describing: self.self_describing.unwrap_or(true),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     EndOfTokens,
 
@@ -529,10 +611,19 @@ impl de::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::Token;
-    use super::Error;
-    use alloc::{borrow::ToOwned, format};
+    use crate::{Token, Tokens};
+    use super::{Deserializer, Error};
+    use alloc::{borrow::ToOwned, format, vec};
+    use claims::assert_err_eq;
+    use serde::de::{Deserialize, IgnoredAny};
     use serde::de::Error as _;
+
+    #[test]
+    fn deserialize_any_not_self_describing() {
+        let mut deserializer = Deserializer::builder().tokens(Tokens(vec![Token::Bool(true)])).self_describing(false).build();
+
+        assert_err_eq!(IgnoredAny::deserialize(&mut deserializer), Error::NotSelfDescribing);
+    }
 
     #[test]
     fn display_error_end_of_tokens() {
