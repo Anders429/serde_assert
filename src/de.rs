@@ -48,8 +48,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             Token::F32(v) => visitor.visit_f32(v),
             Token::F64(v) => visitor.visit_f64(v),
             Token::Char(v) => visitor.visit_char(v),
-            Token::Str(v) => todo!(),
-            Token::Bytes(v) => todo!(),
+            Token::Str(v) => visitor.visit_string(v),
+            Token::Bytes(v) => visitor.visit_byte_buf(v),
             Token::None => visitor.visit_none(),
             Token::Some => visitor.visit_some(self),
             Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
@@ -101,7 +101,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             },
             Token::TupleVariant { .. } => todo!(),
             Token::Map { .. } => todo!(),
-            Token::Field(v) => todo!(),
+            Token::Field(v) => visitor.visit_str(v),
             Token::Struct { .. } => todo!(),
             Token::StructVariant { .. } => todo!(),
             _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
@@ -282,28 +282,48 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Str(v) = token {
+            visitor.visit_str(&v)
+        } else {
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Str(v) = token {
+            visitor.visit_string(v)
+        } else {
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Bytes(v) = token {
+            visitor.visit_bytes(&v)
+        } else {
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Bytes(v) = token {
+            visitor.visit_byte_buf(v)
+        } else {
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -485,7 +505,12 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        match token {
+            Token::Str(v) => visitor.visit_str(&v),
+            Token::Field(v) => visitor.visit_str(v),
+            _ => Err(Self::Error::invalid_type((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
