@@ -86,7 +86,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             },
-            Token::TupleStruct { .. } => todo!(),
+            Token::TupleStruct { name: _, len } => {
+                let mut access = SeqAccess {
+                    deserializer: self,
+
+                    len: Some(len),
+
+                    end_token: Token::TupleStructEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            },
             Token::TupleVariant { .. } => todo!(),
             Token::Map { .. } => todo!(),
             Token::Field(v) => todo!(),
@@ -414,7 +426,28 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::TupleStruct { name: token_name, len: token_len } = token {
+            if name != token_name {
+                Err(Self::Error::invalid_value((&token).into(), &visitor))
+            } else if len != token_len {
+                Err(Self::Error::invalid_length(token_len, &visitor))
+            } else {
+                let mut access = SeqAccess {
+                    deserializer: self,
+
+                    len: Some(len),
+
+                    end_token: Token::TupleStructEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            }
+        } else {
+            Err(Self::Error::invalid_value((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
