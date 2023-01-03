@@ -72,7 +72,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
-            },
+            }
             Token::Tuple { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
@@ -85,7 +85,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
-            },
+            }
             Token::TupleStruct { name: _, len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
@@ -98,7 +98,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
-            },
+            }
             Token::TupleVariant { .. } => todo!(),
             Token::Map { .. } => todo!(),
             Token::Field(v) => visitor.visit_str(v),
@@ -447,7 +447,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::TupleStruct { name: token_name, len: token_len } = token {
+        if let Token::TupleStruct {
+            name: token_name,
+            len: token_len,
+        } = token
+        {
             if name != token_name {
                 Err(Self::Error::invalid_value((&token).into(), &visitor))
             } else if len != token_len {
@@ -509,7 +513,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         match token {
             Token::Str(v) => visitor.visit_str(&v),
             Token::Field(v) => visitor.visit_str(v),
-            _ => Err(Self::Error::invalid_type((&token).into(), &visitor))
+            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
         }
     }
 
@@ -740,12 +744,18 @@ mod tests {
 
     #[test]
     fn display_error_expected_seq_end() {
-        assert_eq!(format!("{}", Error::ExpectedToken(Token::SeqEnd)), "expected token SeqEnd");
+        assert_eq!(
+            format!("{}", Error::ExpectedToken(Token::SeqEnd)),
+            "expected token SeqEnd"
+        );
     }
 
     #[test]
     fn display_error_expected_tuple_end() {
-        assert_eq!(format!("{}", Error::ExpectedToken(Token::TupleEnd)), "expected token TupleEnd");
+        assert_eq!(
+            format!("{}", Error::ExpectedToken(Token::TupleEnd)),
+            "expected token TupleEnd"
+        );
     }
 
     #[test]
