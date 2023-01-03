@@ -7,7 +7,7 @@ use core::{fmt, fmt::Display};
 use serde::de::Error as _;
 use serde::{
     de,
-    de::{Expected, Unexpected},
+    de::{DeserializeSeed, Expected, Unexpected},
 };
 
 #[derive(Debug)]
@@ -100,9 +100,33 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(result)
             }
             Token::TupleVariant { .. } => todo!(),
-            Token::Map { .. } => todo!(),
+            Token::Map { len } => {
+                let mut access = MapAccess {
+                    deserializer: self,
+
+                    len,
+
+                    end_token: Token::MapEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_map(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            }
             Token::Field(v) => visitor.visit_str(v),
-            Token::Struct { .. } => todo!(),
+            Token::Struct { name: _, len } => {
+                let mut access = MapAccess {
+                    deserializer: self,
+
+                    len: Some(len),
+
+                    end_token: Token::StructEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_map(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            }
             Token::StructVariant { .. } => todo!(),
             _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
         }
@@ -478,19 +502,57 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Map { len } = token {
+            let mut access = SeqAccess {
+                deserializer: self,
+
+                len,
+
+                end_token: Token::TupleEnd,
+                ended: false,
+            };
+            let result = visitor.visit_seq(&mut access)?;
+            access.assert_ended()?;
+            Ok(result)
+        } else {
+            Err(Self::Error::invalid_value((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_struct<V>(
         self,
         name: &'static str,
-        fields: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        if let Token::Struct {
+            name: token_name,
+            len,
+        } = token
+        {
+            if name != token_name {
+                Err(Self::Error::invalid_value((&token).into(), &visitor))
+            } else {
+                let mut access = SeqAccess {
+                    deserializer: self,
+
+                    len: Some(len),
+
+                    end_token: Token::TupleEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            }
+        } else {
+            Err(Self::Error::invalid_value((&token).into(), &visitor))
+        }
     }
 
     fn deserialize_enum<V>(
@@ -554,7 +616,7 @@ impl Deserializer {
     }
 }
 
-pub struct SeqAccess<'a> {
+struct SeqAccess<'a> {
     deserializer: &'a mut Deserializer,
 
     len: Option<usize>,
@@ -568,7 +630,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
-        T: de::DeserializeSeed<'de>,
+        T: DeserializeSeed<'de>,
     {
         if self.ended {
             return Ok(None);
@@ -588,6 +650,58 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
 }
 
 impl SeqAccess<'_> {
+    fn assert_ended(&mut self) -> Result<(), Error> {
+        if !self.ended {
+            if self.deserializer.next_token()? != self.end_token {
+                return Err(Error::ExpectedToken(self.end_token.clone()));
+            }
+        }
+        self.ended = true;
+        Ok(())
+    }
+}
+
+struct MapAccess<'a> {
+    deserializer: &'a mut Deserializer,
+
+    len: Option<usize>,
+
+    end_token: Token,
+    ended: bool,
+}
+
+impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        if self.ended {
+            return Ok(None);
+        }
+        let token = self.deserializer.next_token()?;
+        if token == self.end_token {
+            self.ended = true;
+            return Ok(None);
+        }
+        self.deserializer.revisit_token(token);
+        seed.deserialize(&mut *self.deserializer).map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut *self.deserializer)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        self.len
+    }
+}
+
+impl MapAccess<'_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended {
             if self.deserializer.next_token()? != self.end_token {
