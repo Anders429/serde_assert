@@ -60,22 +60,32 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             } => todo!(),
             Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
             Token::NewtypeVariant { .. } => todo!(),
-            Token::Seq { len } => visitor.visit_seq(SeqAccess {
-                deserializer: self,
+            Token::Seq { len } => {
+                let mut access = SeqAccess {
+                    deserializer: self,
 
-                len,
+                    len,
 
-                end_token: Token::SeqEnd,
-                ended: false,
-            }),
-            Token::Tuple { len } => visitor.visit_seq(SeqAccess {
-                deserializer: self,
+                    end_token: Token::SeqEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            },
+            Token::Tuple { len } => {
+                let mut access = SeqAccess {
+                    deserializer: self,
 
-                len: Some(len),
+                    len: Some(len),
 
-                end_token: Token::TupleEnd,
-                ended: false,
-            }),
+                    end_token: Token::TupleEnd,
+                    ended: false,
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
+            },
             Token::TupleStruct { .. } => todo!(),
             Token::TupleVariant { .. } => todo!(),
             Token::Map { .. } => todo!(),
@@ -353,14 +363,17 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Seq { len } = token {
-            visitor.visit_seq(SeqAccess {
+            let mut access = SeqAccess {
                 deserializer: self,
 
                 len,
 
                 end_token: Token::SeqEnd,
                 ended: false,
-            })
+            };
+            let result = visitor.visit_seq(&mut access)?;
+            access.assert_ended()?;
+            Ok(result)
         } else {
             Err(Self::Error::invalid_value((&token).into(), &visitor))
         }
@@ -375,14 +388,17 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             if len != token_len {
                 Err(Self::Error::invalid_length(token_len, &visitor))
             } else {
-                visitor.visit_seq(SeqAccess {
+                let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(len),
 
                     end_token: Token::TupleEnd,
                     ended: false,
-                })
+                };
+                let result = visitor.visit_seq(&mut access)?;
+                access.assert_ended()?;
+                Ok(result)
             }
         } else {
             Err(Self::Error::invalid_value((&token).into(), &visitor))
@@ -509,6 +525,22 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
     }
 }
 
+impl SeqAccess<'_> {
+    fn assert_ended(&mut self) -> Result<(), Error> {
+        if !self.ended {
+            if self.deserializer.next_token()? != self.end_token {
+                match self.end_token {
+                    Token::SeqEnd => return Err(Error::ExpectedSeqEnd),
+                    Token::TupleEnd => return Err(Error::ExpectedTupleEnd),
+                    _ => panic!("invalid end token"),
+                }
+            }
+        }
+        self.ended = true;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Builder {
     tokens: Option<Tokens>,
@@ -553,6 +585,8 @@ impl Builder {
 #[derive(Debug, PartialEq)]
 pub enum Error {
     EndOfTokens,
+    ExpectedSeqEnd,
+    ExpectedTupleEnd,
 
     NotSelfDescribing,
 
@@ -570,6 +604,8 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
+            Self::ExpectedSeqEnd => f.write_str("expected SeqEnd"),
+            Self::ExpectedTupleEnd => f.write_str("expected TupleEnd"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
             Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {}, found {}", expected, unexpected),
@@ -632,7 +668,7 @@ mod tests {
     use serde::de::{Deserialize, IgnoredAny};
 
     #[test]
-    fn deserialize_any_not_self_describing() {
+    fn deserialize_ignored_any_not_self_describing() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
             .self_describing(false)
@@ -647,6 +683,16 @@ mod tests {
     #[test]
     fn display_error_end_of_tokens() {
         assert_eq!(format!("{}", Error::EndOfTokens), "end of tokens");
+    }
+
+    #[test]
+    fn display_error_expected_seq_end() {
+        assert_eq!(format!("{}", Error::ExpectedSeqEnd), "expected SeqEnd");
+    }
+
+    #[test]
+    fn display_error_expected_tuple_end() {
+        assert_eq!(format!("{}", Error::ExpectedTupleEnd), "expected TupleEnd");
     }
 
     #[test]
