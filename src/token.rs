@@ -1,6 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::iter;
+use core::{fmt, fmt::Display, iter};
 use hashbrown::HashSet;
 use serde::de::Unexpected;
 
@@ -234,6 +234,12 @@ impl PartialEq for Token {
             }
             _ => false,
         }
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 

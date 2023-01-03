@@ -529,11 +529,7 @@ impl SeqAccess<'_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended {
             if self.deserializer.next_token()? != self.end_token {
-                match self.end_token {
-                    Token::SeqEnd => return Err(Error::ExpectedSeqEnd),
-                    Token::TupleEnd => return Err(Error::ExpectedTupleEnd),
-                    _ => panic!("invalid end token"),
-                }
+                return Err(Error::ExpectedToken(self.end_token.clone()));
             }
         }
         self.ended = true;
@@ -585,8 +581,8 @@ impl Builder {
 #[derive(Debug, PartialEq)]
 pub enum Error {
     EndOfTokens,
-    ExpectedSeqEnd,
-    ExpectedTupleEnd,
+
+    ExpectedToken(Token),
 
     NotSelfDescribing,
 
@@ -604,8 +600,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
-            Self::ExpectedSeqEnd => f.write_str("expected SeqEnd"),
-            Self::ExpectedTupleEnd => f.write_str("expected TupleEnd"),
+            Self::ExpectedToken(token) => write!(f, "expected token {}", token),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
             Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {}, found {}", expected, unexpected),
@@ -687,12 +682,12 @@ mod tests {
 
     #[test]
     fn display_error_expected_seq_end() {
-        assert_eq!(format!("{}", Error::ExpectedSeqEnd), "expected SeqEnd");
+        assert_eq!(format!("{}", Error::ExpectedToken(Token::SeqEnd)), "expected token SeqEnd");
     }
 
     #[test]
     fn display_error_expected_tuple_end() {
-        assert_eq!(format!("{}", Error::ExpectedTupleEnd), "expected TupleEnd");
+        assert_eq!(format!("{}", Error::ExpectedToken(Token::TupleEnd)), "expected token TupleEnd");
     }
 
     #[test]
