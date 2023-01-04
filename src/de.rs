@@ -1207,7 +1207,9 @@ mod tests {
     use serde::de::{Deserialize, IgnoredAny, Visitor};
 
     #[derive(Debug, PartialEq)]
-    struct Any;
+    enum Any {
+        Bool(bool),
+    }
 
     impl<'de> Deserialize<'de> for Any {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -1223,11 +1225,11 @@ mod tests {
                     formatter.write_str("struct Any")
                 }
 
-                fn visit_bool<E>(self, _v: bool) -> Result<Self::Value, E>
+                fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
                 {
-                    Ok(Any)
+                    Ok(Any::Bool(v))
                 }
             }
 
@@ -1241,7 +1243,7 @@ mod tests {
             .tokens(Tokens(vec![Token::Bool(true)]))
             .build();
 
-        assert_ok_eq!(Any::deserialize(&mut deserializer), Any);
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Bool(true));
     }
 
     #[test]
