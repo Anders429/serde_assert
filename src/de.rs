@@ -1201,10 +1201,45 @@ impl de::Error for Error {
 mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
-    use alloc::{borrow::ToOwned, format, vec};
+    use alloc::{borrow::ToOwned, fmt, format, vec};
     use claims::assert_err_eq;
     use serde::de::Error as _;
-    use serde::de::{Deserialize, IgnoredAny};
+    use serde::de::{Deserialize, IgnoredAny, Visitor};
+
+    #[test]
+    fn deserialize_any_not_self_describing() {
+        #[derive(Debug)]
+        struct Any;
+
+        impl<'de> Deserialize<'de> for Any {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct AnyVisitor;
+
+                impl<'de> Visitor<'de> for AnyVisitor {
+                    type Value = Any;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("struct Any")
+                    }
+                }
+
+                deserializer.deserialize_any(AnyVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .self_describing(false)
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::NotSelfDescribing
+        );
+    }
 
     #[test]
     fn deserialize_ignored_any_not_self_describing() {
