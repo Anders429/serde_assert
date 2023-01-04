@@ -1215,6 +1215,12 @@ mod tests {
         I64(i64),
         #[cfg(has_i128)]
         I128(i128),
+        U8(u8),
+        U16(u16),
+        U32(u32),
+        U64(u64),
+        #[cfg(has_i128)]
+        U128(u128),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1272,6 +1278,42 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::I128(v))
+                }
+
+                fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::U8(v))
+                }
+
+                fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::U16(v))
+                }
+
+                fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::U32(v))
+                }
+
+                fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::U64(v))
+                }
+
+                #[cfg(has_i128)]
+                fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::U128(v))
                 }
             }
 
@@ -1332,6 +1374,52 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I128(42));
+    }
+
+    #[test]
+    fn deserialize_any_u8() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U8(42)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U8(42));
+    }
+
+    #[test]
+    fn deserialize_any_u16() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U16(42)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U16(42));
+    }
+
+    #[test]
+    fn deserialize_any_u32() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U32(42)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U32(42));
+    }
+
+    #[test]
+    fn deserialize_any_u64() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U64(42)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U64(42));
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn deserialize_any_u128() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U128(42)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U128(42));
     }
 
     #[test]
