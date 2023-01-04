@@ -53,13 +53,15 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             Token::None => visitor.visit_none(),
             Token::Some => visitor.visit_some(self),
             Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
-            Token::UnitVariant {
-                name,
-                variant_index,
-                variant,
-            } => todo!(),
+            Token::UnitVariant { .. }
+            | Token::NewtypeVariant { .. }
+            | Token::TupleVariant { .. }
+            | Token::StructVariant { .. } => {
+                // `EnumDeserializer` takes care of the enum deserialization, which will consume this token later.
+                self.revisit_token(token);
+                visitor.visit_enum(EnumAccess { deserializer: self })
+            }
             Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
-            Token::NewtypeVariant { .. } => todo!(),
             Token::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
@@ -99,7 +101,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::TupleVariant { .. } => todo!(),
             Token::Map { len } => {
                 let mut access = MapAccess {
                     deserializer: self,
@@ -127,7 +128,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::StructVariant { .. } => todo!(),
             _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
         }
     }
@@ -558,13 +558,36 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     fn deserialize_enum<V>(
         self,
         name: &'static str,
-        variants: &'static [&'static str],
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        let token = self.next_token()?;
+        match token {
+            Token::UnitVariant {
+                name: token_name, ..
+            }
+            | Token::NewtypeVariant {
+                name: token_name, ..
+            }
+            | Token::TupleVariant {
+                name: token_name, ..
+            }
+            | Token::StructVariant {
+                name: token_name, ..
+            } => {
+                if name != token_name {
+                    Err(Self::Error::invalid_value((&token).into(), &visitor))
+                } else {
+                    // `EnumDeserializer` takes care of the enum deserialization, which will consume this token later.
+                    self.revisit_token(token);
+                    visitor.visit_enum(EnumAccess { deserializer: self })
+                }
+            }
+            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -710,6 +733,351 @@ impl MapAccess<'_> {
         }
         self.ended = true;
         Ok(())
+    }
+}
+
+struct EnumAccess<'a> {
+    deserializer: &'a mut Deserializer,
+}
+
+impl<'a, 'de> de::EnumAccess<'de> for EnumAccess<'a> {
+    type Error = Error;
+    type Variant = VariantAccess<'a>;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let value = seed.deserialize(EnumDeserializer {
+            deserializer: self.deserializer,
+        })?;
+        Ok((
+            value,
+            VariantAccess {
+                deserializer: self.deserializer,
+            },
+        ))
+    }
+}
+
+struct VariantAccess<'a> {
+    deserializer: &'a mut Deserializer,
+}
+
+impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.deserializer)
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_seq(SeqAccess {
+            deserializer: self.deserializer,
+
+            len: Some(len),
+
+            end_token: Token::TupleVariantEnd,
+            ended: false,
+        })
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_map(MapAccess {
+            deserializer: self.deserializer,
+
+            len: None,
+
+            end_token: Token::StructVariantEnd,
+            ended: false,
+        })
+    }
+}
+
+/// Wrapper around `Deserializer` to deserialize enum tokens directly, rather than using
+/// `EnumAccess`.
+///
+/// This is required to ensure the token can be properly deserialized into a variant.
+struct EnumDeserializer<'a> {
+    deserializer: &'a mut Deserializer,
+}
+
+impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.deserializer.next_token()? {
+            Token::UnitVariant { variant, .. }
+            | Token::TupleVariant { variant, .. }
+            | Token::NewtypeVariant { variant, .. }
+            | Token::StructVariant { variant, .. } => visitor.visit_str(variant),
+            _ => unreachable!(),
+        }
+    }
+
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    #[cfg(has_i128)]
+    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.deserializer.next_token()? {
+            Token::UnitVariant { variant_index, .. }
+            | Token::TupleVariant { variant_index, .. }
+            | Token::NewtypeVariant { variant_index, .. }
+            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(variant_index),
+            _ => unreachable!(),
+        }
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    #[cfg(has_i128)]
+    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_u32(visitor)
+    }
+
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_unit_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_newtype_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_tuple_struct<V>(
+        self,
+        name: &'static str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_struct<V>(
+        self,
+        name: &'static str,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        name: &'static str,
+        variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.deserialize_any(visitor)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        self.deserializer.is_human_readable()
     }
 }
 
