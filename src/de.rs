@@ -1202,34 +1202,50 @@ mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, fmt, format, vec};
-    use claims::assert_err_eq;
+    use claims::{assert_err_eq, assert_ok_eq};
     use serde::de::Error as _;
     use serde::de::{Deserialize, IgnoredAny, Visitor};
 
-    #[test]
-    fn deserialize_any_not_self_describing() {
-        #[derive(Debug)]
-        struct Any;
+    #[derive(Debug, PartialEq)]
+    struct Any;
 
-        impl<'de> Deserialize<'de> for Any {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct AnyVisitor;
+    impl<'de> Deserialize<'de> for Any {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct AnyVisitor;
 
-                impl<'de> Visitor<'de> for AnyVisitor {
-                    type Value = Any;
+            impl<'de> Visitor<'de> for AnyVisitor {
+                type Value = Any;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("struct Any")
-                    }
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("struct Any")
                 }
 
-                deserializer.deserialize_any(AnyVisitor)
+                fn visit_bool<E>(self, _v: bool) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any)
+                }
             }
-        }
 
+            deserializer.deserialize_any(AnyVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_any_bool() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any);
+    }
+
+    #[test]
+    fn deserialize_any_not_self_describing() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
             .self_describing(false)
