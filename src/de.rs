@@ -1221,6 +1221,8 @@ mod tests {
         U64(u64),
         #[cfg(has_i128)]
         U128(u128),
+        F32(f32),
+        F64(f64),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1314,6 +1316,20 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::U128(v))
+                }
+
+                fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::F32(v))
+                }
+
+                fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::F64(v))
                 }
             }
 
@@ -1420,6 +1436,24 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U128(42));
+    }
+
+    #[test]
+    fn deserialize_any_f32() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::F32(42.)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::F32(42.));
+    }
+
+    #[test]
+    fn deserialize_any_f64() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::F64(42.)]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::F64(42.));
     }
 
     #[test]
