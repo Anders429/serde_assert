@@ -1230,6 +1230,7 @@ mod tests {
         Unit,
         UnitVariant,
         NewtypeStruct(u32),
+        NewtypeVariant(u32),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1391,6 +1392,7 @@ mod tests {
                 {
                     enum Variant {
                         Unit,
+                        Newtype,
                     }
 
                     impl<'de> Deserialize<'de> for Variant {
@@ -1413,6 +1415,7 @@ mod tests {
                                 {
                                     match v {
                                         "unit" => Ok(Variant::Unit),
+                                        "newtype" => Ok(Variant::Newtype),
                                         _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
                                     }
                                 }
@@ -1428,6 +1431,13 @@ mod tests {
                         Variant::Unit => {
                             access.unit_variant()?;
                             Ok(Any::UnitVariant)
+                        }
+                        Variant::Newtype => {
+                            if let Any::U32(v) = access.newtype_variant()? {
+                                Ok(Any::NewtypeVariant(v))
+                            } else {
+                                unreachable!()
+                            }
                         }
                     }
                 }
@@ -1659,6 +1669,22 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeStruct(42),);
+    }
+
+    #[test]
+    fn deserialize_any_newtype_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeVariant {
+                    name: "foo",
+                    variant_index: 0,
+                    variant: "newtype",
+                },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeVariant(42),);
     }
 
     #[test]
