@@ -1232,6 +1232,7 @@ mod tests {
         NewtypeStruct(u32),
         NewtypeVariant(u32),
         Seq(u32, u32, u32),
+        TupleVariant(u32, u32, u32),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1394,6 +1395,7 @@ mod tests {
                     enum Variant {
                         Unit,
                         Newtype,
+                        Tuple,
                     }
 
                     impl<'de> Deserialize<'de> for Variant {
@@ -1417,6 +1419,7 @@ mod tests {
                                     match v {
                                         "unit" => Ok(Variant::Unit),
                                         "newtype" => Ok(Variant::Newtype),
+                                        "tuple" => Ok(Variant::Tuple),
                                         _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
                                     }
                                 }
@@ -1436,6 +1439,13 @@ mod tests {
                         Variant::Newtype => {
                             if let Any::U32(v) = access.newtype_variant()? {
                                 Ok(Any::NewtypeVariant(v))
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        Variant::Tuple => {
+                            if let Any::Seq(a, b, c) = access.tuple_variant(3, self)? {
+                                Ok(Any::TupleVariant(a, b, c))
                             } else {
                                 unreachable!()
                             }
@@ -1723,6 +1733,36 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
+    }
+
+    #[test]
+    fn deserialize_any_tuple_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleStruct { name: "foo", len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleStructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
+    }
+
+    #[test]
+    fn deserialize_any_tuple_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleVariant { name: "foo", variant_index: 0, variant: "tuple", len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleVariantEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::TupleVariant(1, 2, 3),);
     }
 
     #[test]
