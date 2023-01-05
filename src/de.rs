@@ -1223,6 +1223,7 @@ mod tests {
         U128(u128),
         F32(f32),
         F64(f64),
+        Char(char),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1330,6 +1331,13 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::F64(v))
+                }
+
+                fn visit_char<E>(self, v: char) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::Char(v))
                 }
             }
 
@@ -1454,6 +1462,15 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::F64(42.));
+    }
+
+    #[test]
+    fn deserialize_any_char() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Char('a')]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Char('a'));
     }
 
     #[test]
