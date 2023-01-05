@@ -1229,6 +1229,7 @@ mod tests {
         Option(Option<u32>),
         Unit,
         UnitVariant,
+        NewtypeStruct(u32),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1428,6 +1429,17 @@ mod tests {
                             access.unit_variant()?;
                             Ok(Any::UnitVariant)
                         }
+                    }
+                }
+
+                fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    if let Any::U32(v) = deserializer.deserialize_any(self)? {
+                        Ok(Any::NewtypeStruct(v))
+                    } else {
+                        unreachable!()
                     }
                 }
             }
@@ -1635,6 +1647,18 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::UnitVariant,);
+    }
+
+    #[test]
+    fn deserialize_any_newtype_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeStruct { name: "foo" },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeStruct(42),);
     }
 
     #[test]
