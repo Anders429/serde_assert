@@ -1203,8 +1203,8 @@ mod tests {
     use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok_eq};
-    use serde::de::Error as _;
-    use serde::de::{Deserialize, IgnoredAny, Visitor};
+    use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
+    use serde::de::{Error as _, VariantAccess};
 
     #[derive(Debug, PartialEq)]
     enum Any {
@@ -1228,6 +1228,7 @@ mod tests {
         Bytes(Vec<u8>),
         Option(Option<u32>),
         Unit,
+        UnitVariant,
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1381,6 +1382,53 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::Unit)
+                }
+
+                fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::EnumAccess<'de>,
+                {
+                    enum Variant {
+                        Unit,
+                    }
+
+                    impl<'de> Deserialize<'de> for Variant {
+                        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                        where
+                            D: serde::Deserializer<'de>,
+                        {
+                            struct VariantVisitor;
+
+                            impl<'de> Visitor<'de> for VariantVisitor {
+                                type Value = Variant;
+
+                                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                    formatter.write_str("enum Variant")
+                                }
+
+                                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                                where
+                                    E: serde::de::Error,
+                                {
+                                    match v {
+                                        "unit" => Ok(Variant::Unit),
+                                        _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
+                                    }
+                                }
+                            }
+
+                            deserializer.deserialize_any(VariantVisitor)
+                        }
+                    }
+
+                    let (variant, access) = data.variant()?;
+
+                    match variant {
+                        Variant::Unit => {
+                            access.unit_variant()?;
+                            Ok(Any::UnitVariant)
+                        }
+                    }
                 }
             }
 
@@ -1574,6 +1622,19 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Unit,);
+    }
+
+    #[test]
+    fn deserialize_any_unit_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "foo",
+                variant_index: 0,
+                variant: "unit",
+            }]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::UnitVariant,);
     }
 
     #[test]
