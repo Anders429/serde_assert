@@ -1201,7 +1201,7 @@ impl de::Error for Error {
 mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
-    use alloc::{borrow::ToOwned, fmt, format, vec};
+    use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok_eq};
     use serde::de::Error as _;
     use serde::de::{Deserialize, IgnoredAny, Visitor};
@@ -1224,6 +1224,8 @@ mod tests {
         F32(f32),
         F64(f64),
         Char(char),
+        Str(String),
+        Bytes(Vec<u8>),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1338,6 +1340,20 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::Char(v))
+                }
+
+                fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::Str(v))
+                }
+
+                fn visit_byte_buf<E>(self, v: vec::Vec<u8>) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::Bytes(v))
                 }
             }
 
@@ -1471,6 +1487,30 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Char('a'));
+    }
+
+    #[test]
+    fn deserialize_any_str() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Str("foo".to_owned())
+        );
+    }
+
+    #[test]
+    fn deserialize_any_bytes() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Bytes(b"foo".to_vec())
+        );
     }
 
     #[test]
