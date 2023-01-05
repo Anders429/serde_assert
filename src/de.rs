@@ -1231,6 +1231,7 @@ mod tests {
         UnitVariant,
         NewtypeStruct(u32),
         NewtypeVariant(u32),
+        Seq(Vec<u32>),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1451,6 +1452,17 @@ mod tests {
                     } else {
                         unreachable!()
                     }
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    let mut result = Vec::new();
+                    while let Some(v) = seq.next_element()? {
+                        result.push(v);
+                    }
+                    Ok(Any::Seq(result))
                 }
             }
 
@@ -1685,6 +1697,21 @@ mod tests {
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeVariant(42),);
+    }
+
+    #[test]
+    fn deserialize_any_seq() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Seq { len: None },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::SeqEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(vec![1, 2, 3]),);
     }
 
     #[test]
