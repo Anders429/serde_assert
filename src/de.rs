@@ -1226,6 +1226,7 @@ mod tests {
         Char(char),
         Str(String),
         Bytes(Vec<u8>),
+        Option(Option<u32>),
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1354,6 +1355,22 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::Bytes(v))
+                }
+
+                fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                    where
+                        D: serde::Deserializer<'de>, {
+                    if let Any::U32(v) = deserializer.deserialize_any(self)? {
+                        Ok(Any::Option(Some(v)))
+                    } else {
+                        unreachable!()
+                    }
+                }
+
+                fn visit_none<E>(self) -> Result<Self::Value, E>
+                    where
+                        E: serde::de::Error, {
+                    Ok(Any::Option(None))
                 }
             }
 
@@ -1510,6 +1527,30 @@ mod tests {
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
             Any::Bytes(b"foo".to_vec())
+        );
+    }
+
+    #[test]
+    fn deserialize_any_some() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Some, Token::U32(42)]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Option(Some(42)),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_none() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::None]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Option(None),
         );
     }
 
