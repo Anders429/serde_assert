@@ -1238,6 +1238,10 @@ mod tests {
             foo: u32,
             bar: bool,
         },
+        StructVariant {
+            foo: u32,
+            bar: bool,
+        },
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1401,6 +1405,7 @@ mod tests {
                         Unit,
                         Newtype,
                         Tuple,
+                        Struct,
                     }
 
                     impl<'de> Deserialize<'de> for Variant {
@@ -1425,6 +1430,7 @@ mod tests {
                                         "unit" => Ok(Variant::Unit),
                                         "newtype" => Ok(Variant::Newtype),
                                         "tuple" => Ok(Variant::Tuple),
+                                        "struct" => Ok(Variant::Struct),
                                         _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
                                     }
                                 }
@@ -1451,6 +1457,15 @@ mod tests {
                         Variant::Tuple => {
                             if let Any::Seq(a, b, c) = access.tuple_variant(3, self)? {
                                 Ok(Any::TupleVariant(a, b, c))
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        Variant::Struct => {
+                            if let Any::Map { foo, bar } =
+                                access.struct_variant(&["foo", "bar"], self)?
+                            {
+                                Ok(Any::StructVariant { foo, bar })
                             } else {
                                 unreachable!()
                             }
@@ -1901,6 +1916,33 @@ mod tests {
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
             Any::Map {
+                foo: 42,
+                bar: false
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_any_struct_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::StructVariant {
+                    name: "foo",
+                    variant_index: 0,
+                    variant: "struct",
+                    len: 3,
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructVariantEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::StructVariant {
                 foo: 42,
                 bar: false
             },
