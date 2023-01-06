@@ -1203,6 +1203,7 @@ mod tests {
     use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok_eq};
+    use serde::de;
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
 
@@ -1233,6 +1234,10 @@ mod tests {
         NewtypeVariant(u32),
         Seq(u32, u32, u32),
         TupleVariant(u32, u32, u32),
+        Map {
+            foo: u32,
+            bar: bool,
+        },
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1414,7 +1419,7 @@ mod tests {
 
                                 fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
                                 where
-                                    E: serde::de::Error,
+                                    E: de::Error,
                                 {
                                     match v {
                                         "unit" => Ok(Variant::Unit),
@@ -1468,7 +1473,86 @@ mod tests {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    Ok(Any::Seq(seq.next_element()?.ok_or(A::Error::invalid_length(0, &self))?, seq.next_element()?.ok_or(A::Error::invalid_length(1, &self))?, seq.next_element()?.ok_or(A::Error::invalid_length(2, &self))?))
+                    Ok(Any::Seq(
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(0, &self))?,
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(1, &self))?,
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(2, &self))?,
+                    ))
+                }
+
+                fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::MapAccess<'de>,
+                {
+                    enum Field {
+                        Foo,
+                        Bar,
+                    }
+
+                    impl<'de> Deserialize<'de> for Field {
+                        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                        where
+                            D: serde::Deserializer<'de>,
+                        {
+                            struct FieldVisitor;
+
+                            impl<'de> Visitor<'de> for FieldVisitor {
+                                type Value = Field;
+
+                                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                    formatter.write_str("`foo` or `bar`")
+                                }
+
+                                fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                                where
+                                    E: de::Error,
+                                {
+                                    match value {
+                                        "foo" => Ok(Field::Foo),
+                                        "bar" => Ok(Field::Bar),
+                                        _ => Err(E::unknown_field(value, &["foo", "bar"])),
+                                    }
+                                }
+                            }
+
+                            deserializer.deserialize_identifier(FieldVisitor)
+                        }
+                    }
+
+                    let mut foo = None;
+                    let mut bar = None;
+
+                    while let Some(key) = map.next_key()? {
+                        match key {
+                            Field::Foo => {
+                                if foo.is_some() {
+                                    return Err(A::Error::duplicate_field("foo"));
+                                }
+                                foo = Some(map.next_value()?);
+                            }
+                            Field::Bar => {
+                                if bar.is_some() {
+                                    return Err(A::Error::duplicate_field("bar"));
+                                }
+                                bar = Some(map.next_value()?);
+                            }
+                        }
+                    }
+
+                    if foo.is_none() {
+                        return Err(A::Error::missing_field("foo"));
+                    }
+                    if bar.is_none() {
+                        return Err(A::Error::missing_field("bar"));
+                    }
+
+                    Ok(Any::Map {
+                        foo: foo.unwrap(),
+                        bar: bar.unwrap(),
+                    })
                 }
             }
 
@@ -1739,7 +1823,10 @@ mod tests {
     fn deserialize_any_tuple_struct() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
-                Token::TupleStruct { name: "foo", len: 3 },
+                Token::TupleStruct {
+                    name: "foo",
+                    len: 3,
+                },
                 Token::U32(1),
                 Token::U32(2),
                 Token::U32(3),
@@ -1754,7 +1841,12 @@ mod tests {
     fn deserialize_any_tuple_variant() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
-                Token::TupleVariant { name: "foo", variant_index: 0, variant: "tuple", len: 3 },
+                Token::TupleVariant {
+                    name: "foo",
+                    variant_index: 0,
+                    variant: "tuple",
+                    len: 3,
+                },
                 Token::U32(1),
                 Token::U32(2),
                 Token::U32(3),
@@ -1762,7 +1854,57 @@ mod tests {
             ]))
             .build();
 
-        assert_ok_eq!(Any::deserialize(&mut deserializer), Any::TupleVariant(1, 2, 3),);
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::TupleVariant(1, 2, 3),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_map() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Map { len: Some(3) },
+                Token::Str("foo".to_owned()),
+                Token::U32(42),
+                Token::Str("bar".to_owned()),
+                Token::Bool(false),
+                Token::MapEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Map {
+                foo: 42,
+                bar: false
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_any_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "foo",
+                    len: 3,
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Map {
+                foo: 42,
+                bar: false
+            },
+        );
     }
 
     #[test]
