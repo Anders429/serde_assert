@@ -2066,6 +2066,15 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_bool() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
