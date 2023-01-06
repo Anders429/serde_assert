@@ -1202,7 +1202,7 @@ mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
-    use claims::{assert_err_eq, assert_ok_eq};
+    use claims::{assert_err_eq, assert_ok, assert_ok_eq};
     use serde::de;
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
@@ -2063,6 +2063,15 @@ mod tests {
             Any::deserialize(&mut deserializer),
             Error::NotSelfDescribing
         );
+    }
+
+    #[test]
+    fn deserialize_ignored_any() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_ok!(IgnoredAny::deserialize(&mut deserializer));
     }
 
     #[test]
