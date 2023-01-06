@@ -1358,6 +1358,13 @@ mod tests {
                     Ok(Any::Char(v))
                 }
 
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(Any::Str(v.to_owned()))
+                }
+
                 fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
@@ -1894,6 +1901,18 @@ mod tests {
                 foo: 42,
                 bar: false
             },
+        );
+    }
+
+    #[test]
+    fn deserialize_any_field() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Field("foo")]))
+            .build();
+
+        assert_ok_eq!(
+            Any::deserialize(&mut deserializer),
+            Any::Str("foo".to_owned()),
         );
     }
 
