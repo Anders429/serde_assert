@@ -1969,6 +1969,90 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_any_seq_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::SeqEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::SeqEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_tuple_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::TupleEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::TupleEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_tuple_struct_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::TupleStructEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::TupleStructEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_tuple_variant_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::TupleVariantEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::TupleVariantEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_map_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::MapEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::MapEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_struct_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::StructEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::StructEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_struct_variant_end_fails() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::StructVariantEnd]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::StructVariantEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
     fn deserialize_any_not_self_describing() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
