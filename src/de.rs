@@ -1201,6 +1201,7 @@ impl de::Error for Error {
 mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
+    use alloc::fmt::format;
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok, assert_ok_eq};
     use serde::de;
@@ -2360,6 +2361,77 @@ mod tests {
         assert_err_eq!(
             char::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"a character")
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Str(String);
+
+    impl<'de> Deserialize<'de> for Str {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct StrVisitor;
+
+            impl<'de> Visitor<'de> for StrVisitor {
+                type Value = Str;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("str")
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(Str(v.to_owned()))
+                }
+            }
+
+            deserializer.deserialize_str(StrVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_str() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .build();
+
+        assert_ok_eq!(Str::deserialize(&mut deserializer), Str("foo".to_owned()));
+    }
+
+    #[test]
+    fn deserialize_str_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Str::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"str")
+        );
+    }
+
+    #[test]
+    fn deserialize_string() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .build();
+
+        assert_ok_eq!(String::deserialize(&mut deserializer), "foo".to_owned());
+    }
+
+    #[test]
+    fn deserialize_string_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            String::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"a string")
         );
     }
 
