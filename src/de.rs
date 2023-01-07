@@ -2075,6 +2075,232 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_bool_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I8(42)]))
+            .build();
+
+        assert_err_eq!(
+            bool::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::I8(42)).into(), &"a boolean")
+        );
+    }
+
+    #[test]
+    fn deserialize_i8() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I8(42)]))
+            .build();
+
+        assert_ok_eq!(i8::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_i8_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            i8::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"i8")
+        );
+    }
+
+    #[test]
+    fn deserialize_i16() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I16(42)]))
+            .build();
+
+        assert_ok_eq!(i16::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_i16_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            i16::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"i16")
+        );
+    }
+
+    #[test]
+    fn deserialize_i32() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I32(42)]))
+            .build();
+
+        assert_ok_eq!(i32::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_i32_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            i32::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"i32")
+        );
+    }
+
+    #[test]
+    fn deserialize_i64() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I64(42)]))
+            .build();
+
+        assert_ok_eq!(i64::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_i64_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            i64::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"i64")
+        );
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn deserialize_i128() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::I128(42)]))
+            .build();
+
+        assert_ok_eq!(i128::deserialize(&mut deserializer), 42);
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn deserialize_i128_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            i128::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"i128")
+        );
+    }
+
+    #[test]
+    fn deserialize_u8() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U8(42)]))
+            .build();
+
+        assert_ok_eq!(u8::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_u8_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            u8::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"u8")
+        );
+    }
+
+    #[test]
+    fn deserialize_u16() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U16(42)]))
+            .build();
+
+        assert_ok_eq!(u16::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_u16_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            u16::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"u16")
+        );
+    }
+
+    #[test]
+    fn deserialize_u32() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U32(42)]))
+            .build();
+
+        assert_ok_eq!(u32::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_u32_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            u32::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"u32")
+        );
+    }
+
+    #[test]
+    fn deserialize_u64() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U64(42)]))
+            .build();
+
+        assert_ok_eq!(u64::deserialize(&mut deserializer), 42);
+    }
+
+    #[test]
+    fn deserialize_u64_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            u64::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"u64")
+        );
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn deserialize_u128() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::U128(42)]))
+            .build();
+
+        assert_ok_eq!(u128::deserialize(&mut deserializer), 42);
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn deserialize_u128_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            u128::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"u128")
+        );
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
