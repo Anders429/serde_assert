@@ -1207,6 +1207,7 @@ mod tests {
     use serde::de;
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
+    use serde_bytes::ByteBuf;
 
     #[derive(Debug, PartialEq)]
     enum Any {
@@ -2432,6 +2433,83 @@ mod tests {
         assert_err_eq!(
             String::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"a string")
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Bytes(Vec<u8>);
+
+    impl<'de> Deserialize<'de> for Bytes {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct BytesVisitor;
+
+            impl<'de> Visitor<'de> for BytesVisitor {
+                type Value = Bytes;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("bytes")
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(Bytes(v.to_vec()))
+                }
+            }
+
+            deserializer.deserialize_bytes(BytesVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_bytes() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .build();
+
+        assert_ok_eq!(
+            Bytes::deserialize(&mut deserializer),
+            Bytes(b"foo".to_vec())
+        );
+    }
+
+    #[test]
+    fn deserialize_bytes_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Bytes::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"bytes")
+        );
+    }
+
+    #[test]
+    fn deserialize_byte_buf() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .build();
+
+        assert_ok_eq!(
+            ByteBuf::deserialize(&mut deserializer),
+            ByteBuf::from(b"foo".to_vec())
+        );
+    }
+
+    #[test]
+    fn deserialize_byte_buf_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            ByteBuf::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"byte array")
         );
     }
 
