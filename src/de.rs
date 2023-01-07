@@ -2343,6 +2343,27 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_char() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Char('a')]))
+            .build();
+
+        assert_ok_eq!(char::deserialize(&mut deserializer), 'a');
+    }
+
+    #[test]
+    fn deserialize_char_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            char::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"a character")
+        );
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
