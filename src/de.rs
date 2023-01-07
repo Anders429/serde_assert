@@ -2301,6 +2301,48 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_f32() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::F32(42.)]))
+            .build();
+
+        assert_ok_eq!(f32::deserialize(&mut deserializer), 42.);
+    }
+
+    #[test]
+    fn deserialize_f32_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            f32::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"f32")
+        );
+    }
+
+    #[test]
+    fn deserialize_f64() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::F64(42.)]))
+            .build();
+
+        assert_ok_eq!(f64::deserialize(&mut deserializer), 42.);
+    }
+
+    #[test]
+    fn deserialize_f64_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            f64::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"f64")
+        );
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
