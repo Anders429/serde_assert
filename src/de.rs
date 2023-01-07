@@ -2514,6 +2514,36 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_option_some() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Some, Token::U32(42)]))
+            .build();
+
+        assert_ok_eq!(Option::<u32>::deserialize(&mut deserializer), Some(42));
+    }
+
+    #[test]
+    fn deserialize_option_none() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::None]))
+            .build();
+
+        assert_ok_eq!(Option::<u32>::deserialize(&mut deserializer), None);
+    }
+
+    #[test]
+    fn deserialize_option_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Option::<u32>::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"option")
+        );
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
