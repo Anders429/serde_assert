@@ -2544,6 +2544,92 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_unit() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Unit]))
+            .build();
+
+        assert_ok_eq!(<()>::deserialize(&mut deserializer), ());
+    }
+
+    #[test]
+    fn deserialize_unit_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            <()>::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"unit")
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Unit;
+
+    impl<'de> Deserialize<'de> for Unit {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct UnitVisitor;
+
+            impl<'de> Visitor<'de> for UnitVisitor {
+                type Value = Unit;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("unit struct")
+                }
+
+                fn visit_unit<E>(self) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(Unit)
+                }
+            }
+
+            deserializer.deserialize_unit_struct("Unit", UnitVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_unit_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitStruct { name: "Unit" }]))
+            .build();
+
+        assert_ok_eq!(Unit::deserialize(&mut deserializer), Unit);
+    }
+
+    #[test]
+    fn deserialize_unit_struct_error_invalid_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitStruct { name: "Not Unit" }]))
+            .build();
+
+        assert_err_eq!(
+            Unit::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::UnitStruct { name: "Not Unit" }).into(),
+                &"unit struct"
+            )
+        );
+    }
+
+    #[test]
+    fn deserialize_unit_struct_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Unit::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"unit struct")
+        );
+    }
+
+    #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
