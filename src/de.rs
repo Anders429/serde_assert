@@ -504,15 +504,15 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Map { len } = token {
-            let mut access = SeqAccess {
+            let mut access = MapAccess {
                 deserializer: self,
 
                 len,
 
-                end_token: Token::TupleEnd,
+                end_token: Token::MapEnd,
                 ended: false,
             };
-            let result = visitor.visit_seq(&mut access)?;
+            let result = visitor.visit_map(&mut access)?;
             access.assert_ended()?;
             Ok(result)
         } else {
@@ -538,15 +538,15 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             if name != token_name {
                 Err(Self::Error::invalid_value((&token).into(), &visitor))
             } else {
-                let mut access = SeqAccess {
+                let mut access = MapAccess {
                     deserializer: self,
 
                     len: Some(len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: Token::StructEnd,
                     ended: false,
                 };
-                let result = visitor.visit_seq(&mut access)?;
+                let result = visitor.visit_map(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
@@ -1204,6 +1204,7 @@ mod tests {
     use alloc::fmt::format;
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok, assert_ok_eq};
+    use hashbrown::HashMap;
     use serde::de;
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
@@ -2892,6 +2893,42 @@ mod tests {
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"TupleStruct")
+        );
+    }
+
+    #[test]
+    fn deserialize_map() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Map { len: Some(3) },
+                Token::Char('a'),
+                Token::U32(1),
+                Token::Char('b'),
+                Token::U32(2),
+                Token::Char('c'),
+                Token::U32(3),
+                Token::MapEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(HashMap::<char, u32>::deserialize(&mut deserializer), {
+            let mut map = HashMap::new();
+            map.insert('a', 1);
+            map.insert('b', 2);
+            map.insert('c', 3);
+            map
+        });
+    }
+
+    #[test]
+    fn deserialize_map_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            HashMap::<char, u32>::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"a map")
         );
     }
 
