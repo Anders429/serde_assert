@@ -431,7 +431,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             access.assert_ended()?;
             Ok(result)
         } else {
-            Err(Self::Error::invalid_value((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
         }
     }
 
@@ -457,7 +457,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(result)
             }
         } else {
-            Err(Self::Error::invalid_value((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
         }
     }
 
@@ -494,7 +494,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(result)
             }
         } else {
-            Err(Self::Error::invalid_value((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
         }
     }
 
@@ -516,7 +516,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             access.assert_ended()?;
             Ok(result)
         } else {
-            Err(Self::Error::invalid_value((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
         }
     }
 
@@ -551,7 +551,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(result)
             }
         } else {
-            Err(Self::Error::invalid_value((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((&token).into(), &visitor))
         }
     }
 
@@ -2702,6 +2702,78 @@ mod tests {
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"newtype struct")
+        );
+    }
+
+    #[test]
+    fn deserialize_seq() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Seq { len: Some(3) },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::SeqEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Vec::<u32>::deserialize(&mut deserializer), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn deserialize_seq_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Vec::<u32>::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"a sequence")
+        );
+    }
+
+    #[test]
+    fn deserialize_tuple() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(<(u32, u32, u32)>::deserialize(&mut deserializer), (1, 2, 3));
+    }
+
+    #[test]
+    fn deserialize_tuple_error_len() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Tuple { len: 1 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            <(u32, u32, u32)>::deserialize(&mut deserializer),
+            Error::invalid_length(1, &"a tuple of size 3")
+        );
+    }
+
+    #[test]
+    fn deserialize_tuple_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            <(u32, u32, u32)>::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"a tuple of size 3")
         );
     }
 
