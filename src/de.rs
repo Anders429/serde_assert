@@ -2618,7 +2618,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_unit_struct_error() {
+    fn deserialize_unit_struct_error_token() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
             .build();
@@ -2626,6 +2626,82 @@ mod tests {
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"unit struct")
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Newtype(u32);
+
+    impl<'de> Deserialize<'de> for Newtype {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct NewtypeVisitor;
+
+            impl<'de> Visitor<'de> for NewtypeVisitor {
+                type Value = Newtype;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("newtype struct")
+                }
+
+                fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    Ok(Newtype(u32::deserialize(deserializer)?))
+                }
+            }
+
+            deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_newtype_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeStruct { name: "Newtype" },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_ok_eq!(Newtype::deserialize(&mut deserializer), Newtype(42));
+    }
+
+    #[test]
+    fn deserialize_newtype_struct_error_invalid_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeStruct {
+                    name: "Not Newtype",
+                },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Newtype::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::NewtypeStruct {
+                    name: "Not Newtype"
+                })
+                    .into(),
+                &"newtype struct"
+            )
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_struct_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Newtype::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"newtype struct")
         );
     }
 
