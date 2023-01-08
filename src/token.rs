@@ -272,7 +272,7 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::Seq { .. } | Token::Tuple { .. } => Unexpected::Seq,
             Token::SeqEnd => Unexpected::Other("SeqEnd"),
             Token::TupleEnd => Unexpected::Other("TupleEnd"),
-            Token::TupleStruct { .. } => todo!(),
+            Token::TupleStruct { .. } => Unexpected::Other("tuple struct"),
             Token::TupleStructEnd => Unexpected::Other("TupleStructEnd"),
             Token::TupleVariant { .. } => Unexpected::TupleVariant,
             Token::TupleVariantEnd => Unexpected::Other("TupleVariantEnd"),

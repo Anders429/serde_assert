@@ -2777,6 +2777,124 @@ mod tests {
         );
     }
 
+    #[derive(Debug, PartialEq)]
+    struct TupleStruct(u32, u32, u32);
+
+    impl<'de> Deserialize<'de> for TupleStruct {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct TupleStructVisitor;
+
+            impl<'de> Visitor<'de> for TupleStructVisitor {
+                type Value = TupleStruct;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("TupleStruct")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where
+                    A: de::SeqAccess<'de>,
+                {
+                    Ok(TupleStruct(
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(0, &self))?,
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(1, &self))?,
+                        seq.next_element()?
+                            .ok_or(A::Error::invalid_length(2, &self))?,
+                    ))
+                }
+            }
+
+            deserializer.deserialize_tuple_struct("TupleStruct", 3, TupleStructVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_tuple_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleStruct {
+                    name: "TupleStruct",
+                    len: 3,
+                },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleStructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            TupleStruct::deserialize(&mut deserializer),
+            TupleStruct(1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn deserialize_tuple_struct_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleStruct {
+                    name: "Not TupleStruct",
+                    len: 3,
+                },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleStructEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            TupleStruct::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::TupleStruct {
+                    name: "Not TupleStruct",
+                    len: 3
+                })
+                    .into(),
+                &"TupleStruct"
+            )
+        );
+    }
+
+    #[test]
+    fn deserialize_tuple_struct_error_len() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleStruct {
+                    name: "TupleStruct",
+                    len: 1,
+                },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleStructEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            TupleStruct::deserialize(&mut deserializer),
+            Error::invalid_length(1, &"TupleStruct")
+        );
+    }
+
+    #[test]
+    fn deserialize_tuple_struct_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            TupleStruct::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"TupleStruct")
+        );
+    }
+
     #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
