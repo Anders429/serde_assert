@@ -3100,6 +3100,71 @@ mod tests {
         );
     }
 
+    #[derive(Debug, PartialEq)]
+    struct Identifier(String);
+
+    impl<'de> Deserialize<'de> for Identifier {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct IdentifierVisitor;
+
+            impl<'de> Visitor<'de> for IdentifierVisitor {
+                type Value = Identifier;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("identifier")
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(Identifier(v.to_owned()))
+                }
+            }
+
+            deserializer.deserialize_identifier(IdentifierVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_identifier_str() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .build();
+
+        assert_ok_eq!(
+            Identifier::deserialize(&mut deserializer),
+            Identifier("foo".to_owned())
+        );
+    }
+
+    #[test]
+    fn deserialize_identifier_field() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Field("foo")]))
+            .build();
+
+        assert_ok_eq!(
+            Identifier::deserialize(&mut deserializer),
+            Identifier("foo".to_owned())
+        );
+    }
+
+    #[test]
+    fn deserialize_identifier_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(false)]))
+            .build();
+
+        assert_err_eq!(
+            Identifier::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(false)).into(), &"identifier")
+        );
+    }
+
     #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
