@@ -1209,6 +1209,7 @@ mod tests {
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
     use serde_bytes::ByteBuf;
+    use serde_derive::Deserialize;
 
     #[derive(Debug, PartialEq)]
     enum Any {
@@ -2929,6 +2930,78 @@ mod tests {
         assert_err_eq!(
             HashMap::<char, u32>::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"a map")
+        );
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Struct {
+        foo: u32,
+        bar: bool,
+    }
+
+    #[test]
+    fn deserialize_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "Struct",
+                    len: 2,
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct {
+                foo: 42,
+                bar: false,
+            }
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "Not Struct",
+                    len: 2,
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Struct::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::Struct {
+                    name: "Not Struct",
+                    len: 2
+                })
+                    .into(),
+                &"struct Struct"
+            )
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Struct::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"struct Struct")
         );
     }
 

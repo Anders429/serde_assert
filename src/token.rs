@@ -280,7 +280,7 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::MapEnd => Unexpected::Other("MapEnd"),
             Token::Field(v) => todo!(),
             Token::SkippedField(v) => todo!(),
-            Token::Struct { .. } => todo!(),
+            Token::Struct { .. } => Unexpected::Other("Struct"),
             Token::StructEnd => Unexpected::Other("StructEnd"),
             Token::StructVariant { .. } => Unexpected::StructVariant,
             Token::StructVariantEnd => Unexpected::Other("StructVariantEnd"),
