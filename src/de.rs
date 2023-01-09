@@ -3005,6 +3005,101 @@ mod tests {
         );
     }
 
+    #[derive(Debug, Deserialize, PartialEq)]
+    enum Enum {
+        Unit,
+        Newtype(u32),
+        Tuple(u32, u32, u32),
+        Struct { foo: u32, bar: bool },
+    }
+
+    #[test]
+    fn deserialize_unit_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "Enum",
+                variant_index: 0,
+                variant: "Unit",
+            }]))
+            .build();
+
+        assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Unit,);
+    }
+
+    #[test]
+    fn deserialize_newtype_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeVariant {
+                    name: "Enum",
+                    variant_index: 1,
+                    variant: "Newtype",
+                },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Newtype(42),);
+    }
+
+    #[test]
+    fn deserialize_tuple_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleVariant {
+                    name: "Enum",
+                    variant_index: 2,
+                    variant: "Tuple",
+                    len: 3,
+                },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleVariantEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Tuple(1, 2, 3),);
+    }
+
+    #[test]
+    fn deserialize_struct_variant() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::UnitVariant {
+                    name: "Enum",
+                    variant_index: 3,
+                    variant: "Struct",
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructVariantEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Enum::deserialize(&mut deserializer),
+            Enum::Struct {
+                foo: 42,
+                bar: false,
+            },
+        );
+    }
+
+    #[test]
+    fn deserialize_enum_error_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Enum::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bool(true)).into(), &"enum Enum"),
+        );
+    }
+
     #[test]
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
