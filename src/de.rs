@@ -4976,6 +4976,59 @@ mod tests {
     }
 
     #[test]
+    fn enum_deserializer_deserialize_ignored_any() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        match v {
+                            "Foo" => Ok(EnumVariant::Foo),
+                            _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_ignored_any(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
     fn display_error_end_of_tokens() {
         assert_eq!(format!("{}", Error::EndOfTokens), "end of tokens");
     }
