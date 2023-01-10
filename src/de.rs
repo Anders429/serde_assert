@@ -3027,6 +3027,30 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_unit_variant_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "Not Enum",
+                variant_index: 0,
+                variant: "Unit",
+            }]))
+            .build();
+
+        assert_err_eq!(
+            Enum::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::UnitVariant {
+                    name: "Not Enum",
+                    variant_index: 0,
+                    variant: "Unit",
+                })
+                    .into(),
+                &"enum Enum"
+            )
+        );
+    }
+
+    #[test]
     fn deserialize_newtype_variant() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
@@ -3040,6 +3064,33 @@ mod tests {
             .build();
 
         assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Newtype(42),);
+    }
+
+    #[test]
+    fn deserialize_newtype_variant_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::NewtypeVariant {
+                    name: "Not Enum",
+                    variant_index: 1,
+                    variant: "Newtype",
+                },
+                Token::U32(42),
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Enum::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::NewtypeVariant {
+                    name: "Not Enum",
+                    variant_index: 1,
+                    variant: "Newtype",
+                })
+                    .into(),
+                &"enum Enum"
+            )
+        );
     }
 
     #[test]
@@ -3060,6 +3111,38 @@ mod tests {
             .build();
 
         assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Tuple(1, 2, 3),);
+    }
+
+    #[test]
+    fn deserialize_tuple_variant_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleVariant {
+                    name: "Not Enum",
+                    variant_index: 2,
+                    variant: "Tuple",
+                    len: 3,
+                },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::TupleVariantEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Enum::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::TupleVariant {
+                    name: "Not Enum",
+                    variant_index: 2,
+                    variant: "Tuple",
+                    len: 3,
+                })
+                    .into(),
+                &"enum Enum"
+            )
+        );
     }
 
     #[test]
@@ -3085,6 +3168,37 @@ mod tests {
                 foo: 42,
                 bar: false,
             },
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_variant_error_name() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::UnitVariant {
+                    name: "Not Enum",
+                    variant_index: 3,
+                    variant: "Struct",
+                },
+                Token::Field("foo"),
+                Token::U32(42),
+                Token::Field("bar"),
+                Token::Bool(false),
+                Token::StructVariantEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Enum::deserialize(&mut deserializer),
+            Error::invalid_value(
+                (&Token::UnitVariant {
+                    name: "Not Enum",
+                    variant_index: 3,
+                    variant: "Struct",
+                })
+                    .into(),
+                &"enum Enum"
+            )
         );
     }
 
