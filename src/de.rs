@@ -3071,6 +3071,53 @@ mod tests {
         );
     }
 
+    #[test]
+    fn deserialize_struct_error_end_token_assertion_failed() {
+        #[derive(Debug, PartialEq)]
+        struct Struct;
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("Struct")
+                    }
+
+                    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::MapAccess<'de>,
+                    {
+                        Ok(Struct)
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "Struct",
+                    len: 2,
+                },
+                Token::MapEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            Struct::deserialize(&mut deserializer),
+            Error::ExpectedToken(Token::StructEnd),
+        );
+    }
+
     #[derive(Debug, Deserialize, PartialEq)]
     enum Enum {
         Unit,
