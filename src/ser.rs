@@ -960,6 +960,27 @@ mod tests {
     }
 
     #[test]
+    fn collect_str() {
+        struct CollectedString(String);
+
+        impl Serialize for CollectedString {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                serializer.collect_str(&self.0)
+            }
+        }
+
+        let serializer = Serializer::builder().build();
+
+        assert_ok_eq!(
+            CollectedString("foo".to_owned()).serialize(&serializer),
+            Tokens(vec![Token::Str("foo".to_owned())])
+        );
+    }
+
+    #[test]
     fn is_human_readable_default() {
         let serializer = Serializer::builder().build();
 
