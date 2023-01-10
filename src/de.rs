@@ -2724,7 +2724,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_seq_error() {
+    fn deserialize_seq_error_token() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
             .build();
@@ -2733,6 +2733,52 @@ mod tests {
             Vec::<u32>::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"a sequence")
         );
+    }
+
+    #[test]
+    fn deserialize_seq_after_ended() {
+        #[derive(Debug, PartialEq)]
+        struct Seq;
+
+        impl<'de> Deserialize<'de> for Seq {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct SeqVisitor;
+
+                impl<'de> Visitor<'de> for SeqVisitor {
+                    type Value = Seq;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("Seq")
+                    }
+
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::SeqAccess<'de>,
+                    {
+                        for _ in 0..2 {
+                            if seq.next_element::<()>()?.is_some() {
+                                return Err(A::Error::custom(
+                                    "found element when no element was expected",
+                                ));
+                            }
+                        }
+
+                        Ok(Seq)
+                    }
+                }
+
+                deserializer.deserialize_seq(SeqVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Seq { len: Some(0) }, Token::SeqEnd]))
+            .build();
+
+        assert_ok_eq!(Seq::deserialize(&mut deserializer), Seq);
     }
 
     #[test]
