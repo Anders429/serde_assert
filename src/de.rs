@@ -3433,6 +3433,15 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_skips_skipped_field() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::SkippedField("foo"), Token::Bool(true)]))
+            .build();
+
+        assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+    }
+
+    #[test]
     fn is_human_readable_default() {
         let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
 
