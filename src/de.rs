@@ -3071,49 +3071,64 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_struct_error_end_token_assertion_failed() {
-        #[derive(Debug, PartialEq)]
-        struct Struct;
+    #[derive(Debug, PartialEq)]
+    struct EmptyStruct;
 
-        impl<'de> Deserialize<'de> for Struct {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct StructVisitor;
+    impl<'de> Deserialize<'de> for EmptyStruct {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct EmptyStructVisitor;
 
-                impl<'de> Visitor<'de> for StructVisitor {
-                    type Value = Struct;
+            impl<'de> Visitor<'de> for EmptyStructVisitor {
+                type Value = EmptyStruct;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("Struct")
-                    }
-
-                    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-                    where
-                        A: de::MapAccess<'de>,
-                    {
-                        Ok(Struct)
-                    }
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("EmptyStruct")
                 }
 
-                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+                fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+                where
+                    A: de::MapAccess<'de>,
+                {
+                    Ok(EmptyStruct)
+                }
             }
-        }
 
+            deserializer.deserialize_struct("EmptyStruct", &[], EmptyStructVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_struct_error_end_token_assertion_succeeds() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
                 Token::Struct {
-                    name: "Struct",
-                    len: 2,
+                    name: "EmptyStruct",
+                    len: 0,
+                },
+                Token::StructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(EmptyStruct::deserialize(&mut deserializer), EmptyStruct,);
+    }
+
+    #[test]
+    fn deserialize_struct_error_end_token_assertion_failed() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "EmptyStruct",
+                    len: 0,
                 },
                 Token::MapEnd,
             ]))
             .build();
 
         assert_err_eq!(
-            Struct::deserialize(&mut deserializer),
+            EmptyStruct::deserialize(&mut deserializer),
             Error::ExpectedToken(Token::StructEnd),
         );
     }
