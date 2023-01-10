@@ -835,11 +835,11 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
         }
     }
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -920,25 +920,25 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
         self.deserialize_u32(visitor)
     }
 
-    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -955,105 +955,105 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
         self.deserialize_any(visitor)
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_unit_struct<V>(
         self,
-        name: &'static str,
-        visitor: V,
+        _name: &'static str,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_newtype_struct<V>(
         self,
-        name: &'static str,
-        visitor: V,
+        _name: &'static str,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_tuple_struct<V>(
         self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
+        _name: &'static str,
+        _len: usize,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
-    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
-        visitor: V,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        Err(Error::UnsupportedEnumDeserializerMethod)
     }
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
-        variants: &'static [&'static str],
+        _name: &'static str,
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -1127,6 +1127,7 @@ pub enum Error {
     EndOfTokens,
 
     ExpectedToken(Token),
+    UnsupportedEnumDeserializerMethod,
 
     NotSelfDescribing,
 
@@ -1145,6 +1146,7 @@ impl Display for Error {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
             Self::ExpectedToken(token) => write!(f, "expected token {}", token),
+            Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
             Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {}, found {}", expected, unexpected),
@@ -1201,7 +1203,6 @@ impl de::Error for Error {
 mod tests {
     use super::{Deserializer, Error};
     use crate::{Token, Tokens};
-    use alloc::fmt::format;
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok, assert_ok_eq};
     use hashbrown::HashMap;
@@ -3538,6 +3539,14 @@ mod tests {
         assert_eq!(
             format!("{}", Error::ExpectedToken(Token::TupleEnd)),
             "expected token TupleEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_unsupported_enum_deserializer_method() {
+        assert_eq!(
+            format!("{}", Error::UnsupportedEnumDeserializerMethod),
+            "use of unsupported enum deserializer method"
         );
     }
 
