@@ -4397,6 +4397,41 @@ mod tests {
     }
 
     #[test]
+    fn enum_deserializer_deserialize_char() {
+        #[derive(Debug)]
+        enum EnumVariant {}
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+                }
+
+                deserializer.deserialize_char(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_err_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            Error::UnsupportedEnumDeserializerMethod
+        );
+    }
+
+    #[test]
     fn display_error_end_of_tokens() {
         assert_eq!(format!("{}", Error::EndOfTokens), "end of tokens");
     }
