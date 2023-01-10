@@ -3133,6 +3133,58 @@ mod tests {
         );
     }
 
+    #[test]
+    fn deserialize_struct_after_ended() {
+        #[derive(Debug, PartialEq)]
+        struct Struct;
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("Struct")
+                    }
+
+                    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::MapAccess<'de>,
+                    {
+                        for _ in 0..2 {
+                            if map.next_key::<()>()?.is_some() {
+                                return Err(A::Error::custom(
+                                    "found element when no element was expected",
+                                ));
+                            }
+                        }
+
+                        Ok(Struct)
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Struct {
+                    name: "Struct",
+                    len: 0,
+                },
+                Token::StructEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(Struct::deserialize(&mut deserializer), Struct);
+    }
+
     #[derive(Debug, Deserialize, PartialEq)]
     enum Enum {
         Unit,
