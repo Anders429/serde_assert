@@ -3665,7 +3665,7 @@ mod tests {
     #[test]
     fn enum_deserializer_deserialize_bool() {
         #[derive(Debug)]
-        struct EnumVariant {}
+        enum EnumVariant {}
 
         impl<'de> Deserialize<'de> for EnumVariant {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -3694,6 +3694,635 @@ mod tests {
         assert_err_eq!(
             EnumVariant::deserialize(enum_deserializer),
             Error::UnsupportedEnumDeserializerMethod
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_i8() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_i8(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_i16() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_i16(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_i32() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_i32(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_i64() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_i64(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn enum_deserializer_deserialize_i128() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_i128(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u8() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_u8(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u16() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_u16(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[derive(Debug, PartialEq)]
+    enum U32EnumVariant {
+        Unit,
+        Newtype,
+        Tuple,
+        Struct,
+    }
+
+    impl<'de> Deserialize<'de> for U32EnumVariant {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct U32EnumVariantVisitor;
+
+            impl<'de> Visitor<'de> for U32EnumVariantVisitor {
+                type Value = U32EnumVariant;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("U32EnumVariant")
+                }
+
+                fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    match v {
+                        0 => Ok(U32EnumVariant::Unit),
+                        1 => Ok(U32EnumVariant::Newtype),
+                        2 => Ok(U32EnumVariant::Tuple),
+                        3 => Ok(U32EnumVariant::Struct),
+                        _ => Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self)),
+                    }
+                }
+            }
+
+            deserializer.deserialize_u32(U32EnumVariantVisitor)
+        }
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u32_unit() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Unit",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            U32EnumVariant::deserialize(enum_deserializer),
+            U32EnumVariant::Unit,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u32_newtype() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::NewtypeVariant {
+                name: "EnumVariant",
+                variant_index: 1,
+                variant: "Newtype",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            U32EnumVariant::deserialize(enum_deserializer),
+            U32EnumVariant::Newtype,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u32_tuple() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleVariant {
+                    name: "EnumVariant",
+                    variant_index: 2,
+                    variant: "Tuple",
+                    len: 0,
+                },
+                Token::TupleVariantEnd,
+            ]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            U32EnumVariant::deserialize(enum_deserializer),
+            U32EnumVariant::Tuple,
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u32_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::StructVariant {
+                    name: "EnumVariant",
+                    variant_index: 3,
+                    variant: "Struct",
+                    len: 0,
+                },
+                Token::StructVariantEnd,
+            ]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            U32EnumVariant::deserialize(enum_deserializer),
+            U32EnumVariant::Struct,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "internal error: entered unreachable code")]
+    fn enum_deserializer_deserialize_u32_invalid_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(false)]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        #[allow(unused_must_use)]
+        {
+            // This should panic, so it doesn't matter what value it returns.
+            U32EnumVariant::deserialize(enum_deserializer);
+        }
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_u64() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_u64(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
+        );
+    }
+
+    #[cfg(has_i128)]
+    #[test]
+    fn enum_deserializer_deserialize_u128() {
+        #[derive(Debug, PartialEq)]
+        enum EnumVariant {
+            Foo,
+        }
+
+        impl<'de> Deserialize<'de> for EnumVariant {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct EnumVariantVisitor;
+
+                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                    type Value = EnumVariant;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("EnumVariant")
+                    }
+
+                    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        if v == 0 {
+                            Ok(EnumVariant::Foo)
+                        } else {
+                            Err(E::invalid_value(Unexpected::Unsigned(v.into()), &self))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_u128(EnumVariantVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Foo",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Foo,
         );
     }
 
