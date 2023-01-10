@@ -3215,7 +3215,7 @@ mod tests {
 
     #[test]
     fn display_error_custom() {
-        assert_eq!(format!("{}", Error::Custom("foo".to_owned())), "foo");
+        assert_eq!(format!("{}", Error::custom("foo")), "foo");
     }
 
     #[test]
