@@ -1201,7 +1201,7 @@ impl de::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error};
+    use super::{Deserializer, EnumDeserializer, Error};
     use crate::{Token, Tokens};
     use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
     use claims::{assert_err_eq, assert_ok, assert_ok_eq};
@@ -3089,7 +3089,7 @@ mod tests {
                     formatter.write_str("EmptyStruct")
                 }
 
-                fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+                fn visit_map<A>(self, _map: A) -> Result<Self::Value, A::Error>
                 where
                     A: de::MapAccess<'de>,
                 {
@@ -3519,6 +3519,147 @@ mod tests {
             .build();
 
         assert!(!(&mut deserializer).is_human_readable());
+    }
+
+    #[derive(Debug, PartialEq)]
+    enum EnumVariant {
+        Unit,
+        Newtype,
+        Tuple,
+        Struct,
+    }
+
+    impl<'de> Deserialize<'de> for EnumVariant {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct EnumVariantVisitor;
+
+            impl<'de> Visitor<'de> for EnumVariantVisitor {
+                type Value = EnumVariant;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("EnumVariant")
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    match v {
+                        "Unit" => Ok(EnumVariant::Unit),
+                        "Newtype" => Ok(EnumVariant::Newtype),
+                        "Tuple" => Ok(EnumVariant::Tuple),
+                        "Struct" => Ok(EnumVariant::Struct),
+                        _ => Err(E::invalid_value(Unexpected::Str(v), &self)),
+                    }
+                }
+            }
+
+            deserializer.deserialize_any(EnumVariantVisitor)
+        }
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_any_unit() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::UnitVariant {
+                name: "EnumVariant",
+                variant_index: 0,
+                variant: "Unit",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Unit
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_any_newtype() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::NewtypeVariant {
+                name: "EnumVariant",
+                variant_index: 1,
+                variant: "Newtype",
+            }]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Newtype
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_any_tuple() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::TupleVariant {
+                    name: "EnumVariant",
+                    variant_index: 2,
+                    variant: "Tuple",
+                    len: 0,
+                },
+                Token::TupleVariantEnd,
+            ]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Tuple
+        );
+    }
+
+    #[test]
+    fn enum_deserializer_deserialize_any_struct() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::StructVariant {
+                    name: "EnumVariant",
+                    variant_index: 3,
+                    variant: "Struct",
+                    len: 0,
+                },
+                Token::StructVariantEnd,
+            ]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert_ok_eq!(
+            EnumVariant::deserialize(enum_deserializer),
+            EnumVariant::Struct
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "internal error: entered unreachable code")]
+    fn enum_deserializer_deserialize_any_invalid_token() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(false)]))
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        #[allow(unused_must_use)]
+        {
+            // This should panic, so it doesn't matter what value it returns.
+            EnumVariant::deserialize(enum_deserializer);
+        }
     }
 
     #[test]
