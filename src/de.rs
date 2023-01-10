@@ -1208,6 +1208,7 @@ mod tests {
     use serde::de;
     use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
     use serde::de::{Error as _, VariantAccess};
+    use serde::Deserializer as _;
     use serde_bytes::ByteBuf;
     use serde_derive::Deserialize;
 
@@ -3302,6 +3303,33 @@ mod tests {
             IgnoredAny::deserialize(&mut deserializer),
             Error::NotSelfDescribing
         );
+    }
+
+    #[test]
+    fn is_human_readable_default() {
+        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+
+        assert!((&mut deserializer).is_human_readable());
+    }
+
+    #[test]
+    fn is_human_readable_true() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(Vec::new()))
+            .is_human_readable(true)
+            .build();
+
+        assert!((&mut deserializer).is_human_readable());
+    }
+
+    #[test]
+    fn is_human_readable_false() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(Vec::new()))
+            .is_human_readable(false)
+            .build();
+
+        assert!(!(&mut deserializer).is_human_readable());
     }
 
     #[test]
