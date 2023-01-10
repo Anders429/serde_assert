@@ -5029,6 +5029,42 @@ mod tests {
     }
 
     #[test]
+    fn enum_deserializer_is_human_readable_default() {
+        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert!(enum_deserializer.is_human_readable())
+    }
+
+    #[test]
+    fn enum_deserializer_is_human_readable_true() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(Vec::new()))
+            .is_human_readable(true)
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert!(enum_deserializer.is_human_readable())
+    }
+
+    #[test]
+    fn enum_deserializer_is_human_readable_false() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(Vec::new()))
+            .is_human_readable(false)
+            .build();
+        let enum_deserializer = EnumDeserializer {
+            deserializer: &mut deserializer,
+        };
+
+        assert!(!enum_deserializer.is_human_readable())
+    }
+
+    #[test]
     fn display_error_end_of_tokens() {
         assert_eq!(format!("{}", Error::EndOfTokens), "end of tokens");
     }
