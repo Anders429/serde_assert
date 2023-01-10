@@ -2780,6 +2780,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn deserialize_tuple_error_too_many_elements() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Tuple { len: 3 },
+                Token::U32(1),
+                Token::U32(2),
+                Token::U32(3),
+                Token::U32(4),
+                Token::TupleEnd,
+            ]))
+            .build();
+
+        assert_err_eq!(
+            <(u32, u32, u32)>::deserialize(&mut deserializer),
+            Error::ExpectedToken(Token::TupleEnd)
+        );
+    }
+
     #[derive(Debug, PartialEq)]
     struct TupleStruct(u32, u32, u32);
 
