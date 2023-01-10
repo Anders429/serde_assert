@@ -252,13 +252,13 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::I32(v) => Unexpected::Signed((*v).into()),
             Token::I64(v) => Unexpected::Signed((*v).into()),
             #[cfg(has_i128)]
-            Token::I128(v) => todo!(),
+            Token::I128(..) => Unexpected::Other("i128"),
             Token::U8(v) => Unexpected::Unsigned((*v).into()),
             Token::U16(v) => Unexpected::Unsigned((*v).into()),
             Token::U32(v) => Unexpected::Unsigned((*v).into()),
             Token::U64(v) => Unexpected::Unsigned((*v).into()),
             #[cfg(has_i128)]
-            Token::U128(v) => todo!(),
+            Token::U128(..) => Unexpected::Other("u128"),
             Token::F32(v) => Unexpected::Float((*v).into()),
             Token::F64(v) => Unexpected::Float((*v).into()),
             Token::Char(v) => Unexpected::Char(*v),
@@ -278,13 +278,13 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::TupleVariantEnd => Unexpected::Other("TupleVariantEnd"),
             Token::Map { .. } => Unexpected::Map,
             Token::MapEnd => Unexpected::Other("MapEnd"),
-            Token::Field(v) => todo!(),
-            Token::SkippedField(v) => todo!(),
+            Token::Field(..) => Unexpected::Other("Field"),
+            Token::SkippedField(..) => Unexpected::Other("SkippedField"),
             Token::Struct { .. } => Unexpected::Other("Struct"),
             Token::StructEnd => Unexpected::Other("StructEnd"),
             Token::StructVariant { .. } => Unexpected::StructVariant,
             Token::StructVariantEnd => Unexpected::Other("StructVariantEnd"),
-            Token::Unordered(tokens) => todo!(),
+            Token::Unordered(..) => Unexpected::Other("unordered tokens"),
         }
     }
 }
