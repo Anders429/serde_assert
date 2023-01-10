@@ -3149,10 +3149,11 @@ mod tests {
     fn deserialize_struct_variant() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
-                Token::UnitVariant {
+                Token::StructVariant {
                     name: "Enum",
                     variant_index: 3,
                     variant: "Struct",
+                    len: 2,
                 },
                 Token::Field("foo"),
                 Token::U32(42),
@@ -3175,10 +3176,11 @@ mod tests {
     fn deserialize_struct_variant_error_name() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![
-                Token::UnitVariant {
+                Token::StructVariant {
                     name: "Not Enum",
                     variant_index: 3,
                     variant: "Struct",
+                    len: 2,
                 },
                 Token::Field("foo"),
                 Token::U32(42),
@@ -3191,10 +3193,11 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitVariant {
+                (&Token::StructVariant {
                     name: "Not Enum",
                     variant_index: 3,
                     variant: "Struct",
+                    len: 2,
                 })
                     .into(),
                 &"enum Enum"
