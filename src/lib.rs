@@ -23,7 +23,7 @@
 //!
 //! ## Arbitrary Ordering
 //! In cases where the ordering of [`Token`]s does not matter, such as when serializing a
-//! [`HashSet`], a [`Token::Unordered`] can be used to specify that tokens can be in an arbitrary
+//! [`HashSet`], [`Token::Unordered`] can be used to specify that tokens can be in an arbitrary
 //! order.
 //!
 //! ```
@@ -49,9 +49,11 @@
 //!     Token::SeqEnd]));
 //! ```
 //!
+//! [`claims`]: https://docs.rs/claims/
 //! [`Deserialize`]: serde::Deserialize
 //! [`HashSet`]: hashbrown::HashSet
 //! [`Serialize`]: serde::Serialize
+//! [`Serialize::serialize()`]: serde::Serialize::serialize()
 
 #![no_std]
 
