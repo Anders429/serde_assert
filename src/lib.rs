@@ -49,6 +49,38 @@
 //!     Token::SeqEnd]));
 //! ```
 //!
+//! # Testing Deserialization
+//! A [`Deserializer`] is constructed by providing [`Tokens`] to be deserialized into a value.
+//! During testing, the [`claims`] crate can be used to assert that deserialization succeeds and
+//! returns the expected value.
+//!
+//! ```
+//! use claims::assert_ok_eq;
+//! use serde::Deserialize;
+//! use serde_assert::{Deserializer, Token, Tokens};
+//!
+//! let mut deserializer = Deserializer::builder().tokens(Tokens(vec![Token::Bool(true)])).build();
+//!
+//! assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+//! ```
+//!
+//! # Testing Roundtrip
+//! To assert that a value remains the same when serialized and then deserialized again, the output
+//! of the [`Serializer`] can be used as input to the [`Deserializer`].
+//!
+//! ```
+//! use claims::{assert_ok, assert_ok_eq};
+//! use serde::{Deserialize, Serialize};
+//! use serde_assert::{Deserializer, Serializer};
+//!
+//! let value = true;
+//!
+//! let serializer = Serializer::builder().build();
+//! let mut deserializer = Deserializer::builder().tokens(assert_ok!(value.serialize(&serializer))).build();
+//!
+//! assert_ok_eq!(bool::deserialize(&mut deserializer), value);
+//! ```
+//!
 //! [`claims`]: https://docs.rs/claims/
 //! [`Deserialize`]: serde::Deserialize
 //! [`HashSet`]: hashbrown::HashSet
