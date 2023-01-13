@@ -7,7 +7,48 @@
 [![MSRV](https://img.shields.io/badge/rustc-1.61.0+-yellow.svg)](#minimum-supported-rust-version)
 [![License](https://img.shields.io/crates/l/serde_assert)](#license)
 
-Testing library for `serde` `Serialize` and `Deserialize` implementations.
+Testing library for [`serde`](https://crates.io/crates/serde) [`Serialize`](https://docs.rs/serde/1.0.152/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/1.0.152/serde/trait.Deserialize.html) implementations.
+
+This library provides a [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) and [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) to be used in writing unit tests to assert the behavior of manual [`Serialize`](https://docs.rs/serde/1.0.152/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/1.0.152/serde/trait.Deserialize.html) implementations, respectively. The implementation behavior can be verified by using [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing an arbitrary serialized state.
+
+## Usage
+The examples below use the [`claims`](https://crates.io/crates/claims) crate for convenient assertions.
+
+### Testing Serialization
+The [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) returns [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing the serialization of a value. The returned `Tokens` can be checked to be equal to an expected value.
+
+```
+use claims::assert_ok_eq;
+use serde::Serialize;
+use serde_assert::{
+    Serializer,
+    Token,
+    Tokens,
+};
+
+let serializer = Serializer::builder().build();
+
+assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+```
+
+### Testing Deserialization
+A [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) is constructed by providing [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) to be deserialized into a value.
+
+```
+use claims::assert_ok_eq;
+use serde::Deserialize;
+use serde_assert::{
+    Deserializer,
+    Token,
+    Tokens,
+};
+
+let mut deserializer = Deserializer::builder()
+    .tokens(Tokens(vec![Token::Bool(true)]))
+    .build();
+
+assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+```
 
 ## Comparison with [`serde_test`](https://crates.io/crates/serde_test)
 This crate provides more flexibility than `serde_test` at the expense of more verbosity. While `serde_test` provides a small API of simple assertion macros, this crate will require you to call [`serialize()`](https://docs.rs/serde/latest/serde/trait.Serialize.html#tymethod.serialize) and [`deserialize()`](https://docs.rs/serde/latest/serde/trait.Deserialize.html#tymethod.deserialize) and assert yourself that the results are as expected.
