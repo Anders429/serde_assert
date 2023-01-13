@@ -71,6 +71,15 @@ jobs:
         components: clippy
     - run: cargo clippy -- --deny warnings
 
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dtolnay/rust-toolchain@nightly
+    - run: cargo doc --no-deps
+      env:
+        RUSTDOCFLAGS: -D warnings
+
   msrv:
     runs-on: ubuntu-latest
     steps:
