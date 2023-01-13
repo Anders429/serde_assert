@@ -113,6 +113,7 @@
 //! [`Serialize::serialize()`]: serde::Serialize::serialize()
 
 #![no_std]
+#![warn(clippy::pedantic)]
 
 extern crate alloc;
 

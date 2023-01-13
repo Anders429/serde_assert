@@ -272,6 +272,7 @@ impl<'a> ser::Serializer for &'a Serializer {
 }
 
 impl Serializer {
+    #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }

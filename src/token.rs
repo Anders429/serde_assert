@@ -101,6 +101,7 @@ pub enum Token {
 }
 
 impl PartialEq for Token {
+    #[allow(clippy::too_many_lines)] // The large amount of lines comes from the large amount of variants.
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Token::Bool(a), Token::Bool(b)) => a == b,
@@ -376,9 +377,8 @@ impl PartialEq for Tokens {
                     }
                     self_token = token;
                     break;
-                } else {
-                    return other_iter.next().is_none();
                 }
+                return other_iter.next().is_none();
             }
 
             let other_token;
@@ -391,9 +391,8 @@ impl PartialEq for Tokens {
                     }
                     other_token = token;
                     break;
-                } else {
-                    return false;
                 }
+                return false;
             }
 
             match (self_token, other_token) {

@@ -455,9 +455,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Tuple { len: token_len } = token {
-            if len != token_len {
-                Err(Self::Error::invalid_length(token_len, &visitor))
-            } else {
+            if len == token_len {
                 let mut access = SeqAccess {
                     deserializer: self,
 
@@ -469,6 +467,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
+            } else {
+                Err(Self::Error::invalid_length(token_len, &visitor))
             }
         } else {
             Err(Self::Error::invalid_type((&token).into(), &visitor))
@@ -549,9 +549,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             len,
         } = token
         {
-            if name != token_name {
-                Err(Self::Error::invalid_value((&token).into(), &visitor))
-            } else {
+            if name == token_name {
                 let mut access = MapAccess {
                     deserializer: self,
 
@@ -563,6 +561,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let result = visitor.visit_map(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
+            } else {
+                Err(Self::Error::invalid_value((&token).into(), &visitor))
             }
         } else {
             Err(Self::Error::invalid_type((&token).into(), &visitor))
@@ -592,13 +592,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             | Token::StructVariant {
                 name: token_name, ..
             } => {
-                if name != token_name {
-                    Err(Self::Error::invalid_value((&token).into(), &visitor))
-                } else {
+                if name == token_name {
                     // `EnumDeserializer` takes care of the enum deserialization, which will consume
                     // this token later.
                     self.revisit_token(token);
                     visitor.visit_enum(EnumAccess { deserializer: self })
+                } else {
+                    Err(Self::Error::invalid_value((&token).into(), &visitor))
                 }
             }
             _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
@@ -630,6 +630,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 }
 
 impl Deserializer {
+    #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }
