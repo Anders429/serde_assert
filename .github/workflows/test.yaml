@@ -69,7 +69,7 @@ jobs:
     - uses: dtolnay/rust-toolchain@nightly
       with:
         components: clippy
-    - run: cargo clippy --deny warnings
+    - run: cargo clippy -- --deny warnings
 
   msrv:
     runs-on: ubuntu-latest
