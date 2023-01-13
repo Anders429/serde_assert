@@ -9,6 +9,9 @@
 
 Testing library for `serde` `Serialize` and `Deserialize` implementations.
 
+## Minimum Supported Rust Version
+This crate is guaranteed to compile on stable `rustc 1.61.0` and up.
+
 ## License
 This project is licensed under either of
 
