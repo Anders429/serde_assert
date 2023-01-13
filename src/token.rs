@@ -1,6 +1,12 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::{fmt, fmt::Display, iter};
+use alloc::{
+    string::String,
+    vec::Vec,
+};
+use core::{
+    fmt,
+    fmt::Display,
+    iter,
+};
 use hashbrown::HashSet;
 use serde::de::Unexpected;
 
@@ -422,8 +428,14 @@ impl PartialEq for Tokens {
 
 #[cfg(test)]
 mod tests {
-    use super::{Token, Tokens};
-    use alloc::{borrow::ToOwned, vec};
+    use super::{
+        Token,
+        Tokens,
+    };
+    use alloc::{
+        borrow::ToOwned,
+        vec,
+    };
     use serde::de::Unexpected;
 
     #[test]

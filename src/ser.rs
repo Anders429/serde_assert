@@ -1,19 +1,32 @@
-use crate::{Token, Tokens};
-use alloc::borrow::ToOwned;
-use alloc::string::String;
-use alloc::string::ToString;
-use alloc::vec;
-use core::fmt;
-use core::fmt::Display;
-use serde::ser;
-use serde::ser::SerializeMap;
-use serde::ser::SerializeSeq;
-use serde::ser::SerializeStruct;
-use serde::ser::SerializeStructVariant;
-use serde::ser::SerializeTuple;
-use serde::ser::SerializeTupleStruct;
-use serde::ser::SerializeTupleVariant;
-use serde::Serialize;
+use crate::{
+    Token,
+    Tokens,
+};
+use alloc::{
+    borrow::ToOwned,
+    string::{
+        String,
+        ToString,
+    },
+    vec,
+};
+use core::{
+    fmt,
+    fmt::Display,
+};
+use serde::{
+    ser,
+    ser::{
+        SerializeMap,
+        SerializeSeq,
+        SerializeStruct,
+        SerializeStructVariant,
+        SerializeTuple,
+        SerializeTupleStruct,
+        SerializeTupleVariant,
+    },
+    Serialize,
+};
 
 #[derive(Debug)]
 pub struct Serializer {
@@ -457,14 +470,30 @@ impl ser::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, Serializer};
-    use crate::{Token, Tokens};
-    use alloc::{borrow::ToOwned, format, string::String, vec};
+    use super::{
+        Error,
+        Serializer,
+    };
+    use crate::{
+        Token,
+        Tokens,
+    };
+    use alloc::{
+        borrow::ToOwned,
+        format,
+        string::String,
+        vec,
+    };
     use claims::assert_ok_eq;
-    use hashbrown::{HashMap, HashSet};
-    use serde::ser::Error as _;
-    use serde::ser::Serialize;
-    use serde::ser::Serializer as _;
+    use hashbrown::{
+        HashMap,
+        HashSet,
+    };
+    use serde::ser::{
+        Error as _,
+        Serialize,
+        Serializer as _,
+    };
     use serde_bytes::Bytes;
     use serde_derive::Serialize;
 

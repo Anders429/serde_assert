@@ -14,7 +14,11 @@
 //! ```
 //! use claims::assert_ok_eq;
 //! use serde::Serialize;
-//! use serde_assert::{Serializer, Token, Tokens};
+//! use serde_assert::{
+//!     Serializer,
+//!     Token,
+//!     Tokens,
+//! };
 //!
 //! let serializer = Serializer::builder().build();
 //!
@@ -30,7 +34,11 @@
 //! use claims::assert_ok_eq;
 //! use hashbrown::HashSet;
 //! use serde::Serialize;
-//! use serde_assert::{Serializer, Token, Tokens};
+//! use serde_assert::{
+//!     Serializer,
+//!     Token,
+//!     Tokens,
+//! };
 //!
 //! let serializer = Serializer::builder().build();
 //!
@@ -39,14 +47,14 @@
 //! set.insert(2);
 //! set.insert(3);
 //!
-//! assert_ok_eq!(set.serialize(&serializer), Tokens(vec![
-//!     Token::Seq {len: Some(3)},
-//!     Token::Unordered(&[
-//!         &[Token::U32(1)],
-//!         &[Token::U32(2)],
-//!         &[Token::U32(3)],
-//!     ]),
-//!     Token::SeqEnd]));
+//! assert_ok_eq!(
+//!     set.serialize(&serializer),
+//!     Tokens(vec![
+//!         Token::Seq { len: Some(3) },
+//!         Token::Unordered(&[&[Token::U32(1)], &[Token::U32(2)], &[Token::U32(3)],]),
+//!         Token::SeqEnd
+//!     ])
+//! );
 //! ```
 //!
 //! # Testing Deserialization
@@ -57,9 +65,15 @@
 //! ```
 //! use claims::assert_ok_eq;
 //! use serde::Deserialize;
-//! use serde_assert::{Deserializer, Token, Tokens};
+//! use serde_assert::{
+//!     Deserializer,
+//!     Token,
+//!     Tokens,
+//! };
 //!
-//! let mut deserializer = Deserializer::builder().tokens(Tokens(vec![Token::Bool(true)])).build();
+//! let mut deserializer = Deserializer::builder()
+//!     .tokens(Tokens(vec![Token::Bool(true)]))
+//!     .build();
 //!
 //! assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 //! ```
@@ -69,14 +83,25 @@
 //! of the [`Serializer`] can be used as input to the [`Deserializer`].
 //!
 //! ```
-//! use claims::{assert_ok, assert_ok_eq};
-//! use serde::{Deserialize, Serialize};
-//! use serde_assert::{Deserializer, Serializer};
+//! use claims::{
+//!     assert_ok,
+//!     assert_ok_eq,
+//! };
+//! use serde::{
+//!     Deserialize,
+//!     Serialize,
+//! };
+//! use serde_assert::{
+//!     Deserializer,
+//!     Serializer,
+//! };
 //!
 //! let value = true;
 //!
 //! let serializer = Serializer::builder().build();
-//! let mut deserializer = Deserializer::builder().tokens(assert_ok!(value.serialize(&serializer))).build();
+//! let mut deserializer = Deserializer::builder()
+//!     .tokens(assert_ok!(value.serialize(&serializer)))
+//!     .build();
 //!
 //! assert_ok_eq!(bool::deserialize(&mut deserializer), value);
 //! ```
@@ -100,4 +125,7 @@ mod token;
 pub use de::Deserializer;
 #[doc(inline)]
 pub use ser::Serializer;
-pub use token::{Token, Tokens};
+pub use token::{
+    Token,
+    Tokens,
+};

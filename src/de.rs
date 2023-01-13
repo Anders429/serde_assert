@@ -1,13 +1,26 @@
-use crate::{Token, Tokens};
+use crate::{
+    Token,
+    Tokens,
+};
 use alloc::{
-    string::{String, ToString},
+    string::{
+        String,
+        ToString,
+    },
     vec,
 };
-use core::{fmt, fmt::Display};
-use serde::de::Error as _;
+use core::{
+    fmt,
+    fmt::Display,
+};
 use serde::{
     de,
-    de::{DeserializeSeed, Expected, Unexpected},
+    de::{
+        DeserializeSeed,
+        Error as _,
+        Expected,
+        Unexpected,
+    },
 };
 
 #[derive(Debug)]
@@ -57,7 +70,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             | Token::NewtypeVariant { .. }
             | Token::TupleVariant { .. }
             | Token::StructVariant { .. } => {
-                // `EnumDeserializer` takes care of the enum deserialization, which will consume this token later.
+                // `EnumDeserializer` takes care of the enum deserialization, which will consume
+                // this token later.
                 self.revisit_token(token);
                 visitor.visit_enum(EnumAccess { deserializer: self })
             }
@@ -581,7 +595,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 if name != token_name {
                     Err(Self::Error::invalid_value((&token).into(), &visitor))
                 } else {
-                    // `EnumDeserializer` takes care of the enum deserialization, which will consume this token later.
+                    // `EnumDeserializer` takes care of the enum deserialization, which will consume
+                    // this token later.
                     self.revisit_token(token);
                     visitor.visit_enum(EnumAccess { deserializer: self })
                 }
@@ -1201,15 +1216,41 @@ impl de::Error for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, EnumDeserializer, Error};
-    use crate::{Token, Tokens};
-    use alloc::{borrow::ToOwned, fmt, format, string::String, vec, vec::Vec};
-    use claims::{assert_err_eq, assert_ok, assert_ok_eq};
+    use super::{
+        Deserializer,
+        EnumDeserializer,
+        Error,
+    };
+    use crate::{
+        Token,
+        Tokens,
+    };
+    use alloc::{
+        borrow::ToOwned,
+        fmt,
+        format,
+        string::String,
+        vec,
+        vec::Vec,
+    };
+    use claims::{
+        assert_err_eq,
+        assert_ok,
+        assert_ok_eq,
+    };
     use hashbrown::HashMap;
-    use serde::de;
-    use serde::de::{Deserialize, IgnoredAny, Unexpected, Visitor};
-    use serde::de::{Error as _, VariantAccess};
-    use serde::Deserializer as _;
+    use serde::{
+        de,
+        de::{
+            Deserialize,
+            Error as _,
+            IgnoredAny,
+            Unexpected,
+            VariantAccess,
+            Visitor,
+        },
+        Deserializer as _,
+    };
     use serde_bytes::ByteBuf;
     use serde_derive::Deserialize;
 
