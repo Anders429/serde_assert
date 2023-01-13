@@ -245,7 +245,7 @@ impl PartialEq for Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -256,17 +256,17 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::I8(v) => Unexpected::Signed((*v).into()),
             Token::I16(v) => Unexpected::Signed((*v).into()),
             Token::I32(v) => Unexpected::Signed((*v).into()),
-            Token::I64(v) => Unexpected::Signed((*v).into()),
+            Token::I64(v) => Unexpected::Signed(*v),
             #[cfg(has_i128)]
             Token::I128(..) => Unexpected::Other("i128"),
             Token::U8(v) => Unexpected::Unsigned((*v).into()),
             Token::U16(v) => Unexpected::Unsigned((*v).into()),
             Token::U32(v) => Unexpected::Unsigned((*v).into()),
-            Token::U64(v) => Unexpected::Unsigned((*v).into()),
+            Token::U64(v) => Unexpected::Unsigned(*v),
             #[cfg(has_i128)]
             Token::U128(..) => Unexpected::Other("u128"),
             Token::F32(v) => Unexpected::Float((*v).into()),
-            Token::F64(v) => Unexpected::Float((*v).into()),
+            Token::F64(v) => Unexpected::Float(*v),
             Token::Char(v) => Unexpected::Char(*v),
             Token::Str(v) => Unexpected::Str(v),
             Token::Bytes(v) => Unexpected::Bytes(v),
@@ -321,7 +321,7 @@ where
         .collect::<Vec<_>>();
 
     loop {
-        if current.len() == 0 {
+        if current.is_empty() {
             return false;
         }
 
@@ -377,11 +377,7 @@ impl PartialEq for Tokens {
                     self_token = token;
                     break;
                 } else {
-                    if other_iter.next().is_some() {
-                        return false;
-                    } else {
-                        return true;
-                    }
+                    return other_iter.next().is_none();
                 }
             }
 
