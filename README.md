@@ -9,6 +9,15 @@
 
 Testing library for `serde` `Serialize` and `Deserialize` implementations.
 
+## Comparison with [`serde_test`](https://crates.io/crates/serde_test)
+This crate provides more flexibility than `serde_test` at the expense of more verbosity. While `serde_test` provides a small API of simple assertion macros, this crate will require you to call [`serialize()`](https://docs.rs/serde/latest/serde/trait.Serialize.html#tymethod.serialize) and [`deserialize()`](https://docs.rs/serde/latest/serde/trait.Deserialize.html#tymethod.deserialize) and assert yourself that the results are as expected.
+
+While some users may find that the smaller API of `serde_test` is sufficient for their use-case, others will find that the flexibility of this crate makes testing more complicated `Serailize` and `Deserialize` implementations easier. Among other things, this crate's API provides these advantages:
+
+- Direct access to the [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) and [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html), allowing use of all parts of the `serde` `Serializer` and `Deserializer` APIs, such as deserializing types that implement [`DeserializeSeed`](https://docs.rs/serde/latest/serde/de/trait.DeserializeSeed.html).
+- Customization of [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html)s and [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html)s, allowing configuration of things like human-readability or whether the `Deserializer` should interpret [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) as self-describing.
+- Sophisticated comparison of serialized [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html), including allowing testing of types whose serialized form can include items in arbitrary order, such as when serializing a [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html).
+
 ## Minimum Supported Rust Version
 This crate is guaranteed to compile on stable `rustc 1.61.0` and up.
 
