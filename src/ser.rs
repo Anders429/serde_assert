@@ -1,3 +1,25 @@
+//! Testing serialization implementations.
+//!
+//! This module provides a [`Serializer`] struct for testing serialization. Construction of this
+//! struct uses the builder pattern through the [`Builder`] struct, allowing configuration of the
+//! behavior of the `Serializer`.
+//!
+//! # Example
+//!
+//! ``` rust
+//! use claims::assert_ok_eq;
+//! use serde::Serialize;
+//! use serde_assert::{
+//!     Serializer,
+//!     Token,
+//!     Tokens,
+//! };
+//!
+//! let serializer = Serializer::builder().build();
+//!
+//! assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+//! ```
+
 use crate::{
     Token,
     Tokens,
@@ -28,6 +50,36 @@ use serde::{
     Serialize,
 };
 
+/// Serializer for testing [`Serialize`] implementations.
+///
+/// This serializer outputs [`Tokens`] representing the serialized value. The `Tokens` can be
+/// compared against expected `Tokens` to ensure the serialization is correct.
+///
+/// # Configuration
+/// The following options can be configured on the [`Builder`]:
+///
+/// - [`is_human_readable()`]: Determines whether the serializer will serialize values in a
+/// readable format or a compact format. Useful for complicated structs wishing to provide
+/// different outputs depending on the readability of the serialization type.
+///
+/// # Example
+///
+/// ``` rust
+/// use claims::assert_ok_eq;
+/// use serde::Serialize;
+/// use serde_assert::{
+///     Serializer,
+///     Token,
+///     Tokens,
+/// };
+///
+/// let serializer = Serializer::builder().build();
+///
+/// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+/// ```
+///
+/// [`is_human_readable()`]: Builder::is_human_readable()
+/// [`Serialize`]: serde::Serialize
 #[derive(Debug)]
 pub struct Serializer {
     is_human_readable: bool,
@@ -272,23 +324,68 @@ impl<'a> ser::Serializer for &'a Serializer {
 }
 
 impl Serializer {
+    /// Returns a [`Builder`] for a [`Serializer`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::Serializer;
+    ///
+    /// let serializer = Serializer::builder().is_human_readable(false).build();
+    /// ```
     #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }
 }
 
+/// A builder for a [`Serializer`]`.
+///
+/// Construction of a `Serializer` follows the builder pattern. Configuration options can be set on
+/// the `Builder`, and then the actual `Serializer` is constructed by calling [`build()`].
+///
+/// # Example
+/// ``` rust
+/// use serde_assert::Serializer;
+///
+/// let serializer = Serializer::builder().is_human_readable(false).build();
+/// ```
+///
+/// [`build()`]: Builder::build()
 #[derive(Debug, Default)]
 pub struct Builder {
     is_human_readable: Option<bool>,
 }
 
 impl Builder {
+    /// Determines whether the serializer will serialize values in a readable format or a compact
+    /// format.
+    ///
+    /// Useful for complicated structs wishing to provide different outputs depending on
+    /// the readability of the serialization type.
+    ///
+    /// If not set, the default value is `true`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::Serializer;
+    ///
+    /// let serializer = Serializer::builder().is_human_readable(false).build();
+    /// ```
     pub fn is_human_readable(&mut self, is_human_readable: bool) -> &mut Self {
         self.is_human_readable = Some(is_human_readable);
         self
     }
 
+    /// Build a new [`Serializer`] using this `Builder`.
+    ///
+    /// Constructs a new `Serializer` using the configuration options set on this `Builder`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::Serializer;
+    ///
+    /// let serializer = Serializer::builder().is_human_readable(false).build();
+    /// ```
     pub fn build(&mut self) -> Serializer {
         Serializer {
             is_human_readable: self.is_human_readable.unwrap_or(true),
@@ -296,6 +393,15 @@ impl Builder {
     }
 }
 
+/// Serializer for serializing compound types.
+///
+/// This type implements [`SerializeSeq`], [`SerializeTuple`], [`SerializeTupleStruct`],
+/// [`SerializeTupleVariant`], [`SerializeMap`], [`SerializeStruct`], and
+/// [`SerializeStructVariant`], and is used by [`Serializer`] for serialization of each of those
+/// compound data types.
+///
+/// Users normally will not need to interact with this type directly. It is primarily used by
+/// [`Serialize`] implementations through the various traits it implements.
 #[derive(Debug)]
 pub struct CompoundSerializer<'a> {
     tokens: Tokens,
@@ -449,6 +555,15 @@ impl SerializeStructVariant for CompoundSerializer<'_> {
     }
 }
 
+/// An error encountered during serialization.
+///
+/// # Example
+/// ```rust
+/// use serde::ser::Error as _;
+/// use serde_assert::ser::Error;
+///
+/// assert_eq!(format!("{}", Error::custom("foo")), "foo");
+/// ```
 #[derive(Debug)]
 pub struct Error(pub String);
 
