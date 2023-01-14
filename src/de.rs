@@ -1,3 +1,26 @@
+//! Testing deserialization implementations.
+//!
+//! This module provides a [`Deserializer`] struct for testing deserialization. Construction of
+//! this struct uses the builder pattern through the [`Builder`] struct, allowing configuration of
+//! the behavior of the `Deserializer`.
+//!
+//! # Example
+//! ``` rust
+//! use claims::assert_ok_eq;
+//! use serde::Deserialize;
+//! use serde_assert::{
+//!     Deserializer,
+//!     Token,
+//!     Tokens,
+//! };
+//!
+//! let mut deserializer = Deserializer::builder()
+//!     .tokens(Tokens(vec![Token::Bool(true)]))
+//!     .build();
+//!
+//! assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+//! ```
+
 use crate::{
     Token,
     Tokens,
@@ -23,6 +46,44 @@ use serde::{
     },
 };
 
+/// Deserializer for testing [`Deserialize`] implementations.
+///
+/// A deserializer is constructed using [`Tokens`] representing the serialized value to be
+/// deserialized. The value that is output can be compared against an expected value to ensure
+/// deserialization works correctly.
+///
+/// # Configuration
+/// The following options can be configured on the [`Builder`]:
+///
+/// - [`is_human_readable()`]: Determines whether the deserializer will interpret the input tokens
+/// in a readable or compact format. Useful for complicated structs wishing to provide different
+/// outputs depending on the readability of the serialization type.
+/// - [`self_describing()`]: Determines whether the deserialization should interpret the input
+/// tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
+/// directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
+/// will result in an error.
+///
+/// # Example
+/// ``` rust
+/// use claims::assert_ok_eq;
+/// use serde::Deserialize;
+/// use serde_assert::{
+///     Deserializer,
+///     Token,
+///     Tokens,
+/// };
+///
+/// let mut deserializer = Deserializer::builder()
+///     .tokens(Tokens(vec![Token::Bool(true)]))
+///     .build();
+///
+/// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+/// ```
+///
+/// [`is_human_readable()`]: Builder::is_human_readable()
+/// [`Deserialize`]: serde::Deserialize
+/// [`deserialize_any()`]: #method.deserialize_any
+/// [`self_describing()`]: Builder::self_describing()
 #[derive(Debug)]
 pub struct Deserializer {
     tokens: vec::IntoIter<Token>,
@@ -1093,6 +1154,30 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
     }
 }
 
+/// A builder for a [`Deserializer`].
+///
+/// Construction of a `Deserializer` follows the builder pattern. Configuration options can be set
+/// on the `Builder`, and then the actual `Deserializer` is constructed by calling [`build()`].
+///
+/// Note that providing [`Tokens`] using the [`tokens()`] method is required.
+///
+/// # Example
+/// ``` rust
+/// use serde_assert::{
+///     Deserializer,
+///     Token,
+///     Tokens,
+/// };
+///
+/// let deserializer = Deserializer::builder()
+///     .tokens(Tokens(vec![Token::Bool(true)]))
+///     .is_human_readable(false)
+///     .self_describing(true)
+///     .build();
+/// ```
+///
+/// [`build()`]: Builder::build()
+/// [`tokens()`]: Builder::tokens()
 #[derive(Debug, Default)]
 pub struct Builder {
     tokens: Option<Tokens>,
@@ -1102,21 +1187,100 @@ pub struct Builder {
 }
 
 impl Builder {
+    /// Provides the [`Tokens`] to be used as the input source during deserialization.
+    ///
+    /// Calling this method before [`build()`] is required.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .build();
+    /// ```
+    ///
+    /// [`build()`]: Builder::build()
     pub fn tokens(&mut self, tokens: Tokens) -> &mut Self {
         self.tokens = Some(tokens);
         self
     }
 
+    /// Determines whether the deserializer will interpret the input tokens in a readable or compact
+    /// format.
+    ///
+    /// Useful for complicated structs wishing to provide different outputs depending on the
+    /// readability of the serialization type.
+    ///
+    /// If not set, the default value is `true`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .is_human_readable(false)
+    ///     .build();
+    /// ```
     pub fn is_human_readable(&mut self, is_human_readable: bool) -> &mut Self {
         self.is_human_readable = Some(is_human_readable);
         self
     }
 
+    /// Determines whether the deserialization should interpret the input tokens as self-describing,
+    /// meaning the type the tokens should deserialize to can be discerned directly from the tokens
+    /// themselves.
+    ///
+    /// If this is set to `false`, calls to [`deserialize_any()`] will result in an error.
+    ///
+    /// If not set, the default value is `true`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .self_describing(false)
+    ///     .build();
+    /// ```
+    ///
+    /// [`deserialize_any()`]: ../struct.Deserializer.html#method.deserialize_any
     pub fn self_describing(&mut self, self_describing: bool) -> &mut Self {
         self.self_describing = Some(self_describing);
         self
     }
 
+    /// Build a new [`Deserializer`] using this `Builder`.
+    ///
+    /// Constructs a new `Deserializer` using the configuration options set on this `Builder`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .is_human_readable(false)
+    ///     .build();
+    /// ```
     pub fn build(&mut self) -> Deserializer {
         Deserializer {
             tokens: self
@@ -1134,22 +1298,71 @@ impl Builder {
     }
 }
 
+/// An error encountered during deserialization.
+///
+/// # Example
+/// ```rust
+/// use serde::de::Error as _;
+/// use serde_assert::de::Error;
+///
+/// assert_eq!(
+///     format!("{}", Error::missing_field("foo")),
+///     "missing field foo"
+/// );
+/// ```
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// The [`Deserializer`] reached the end of the input [`Tokens`] before deserialization was
+    /// completed.
     EndOfTokens,
 
+    /// Expected the given token, but encountered a different token instead.
     ExpectedToken(Token),
+    /// An unsupported [`serde::Deserializer`] method was called during deserialization of an
+    /// `enum` variant.
+    ///
+    /// If you encounter this error, check what methods you are calling when deserializing your
+    /// `enum` variants. Many standard `serde` types are not supported in this context.
     UnsupportedEnumDeserializerMethod,
 
+    /// The [`Deserializer`] was set to be non-self-describing, but the [`Deserialize`]
+    /// implementation made a call to [`deserialize_any()`].
+    ///
+    /// [`Deserialize`]: serde::Deserialize
+    /// [`deserialize_any()`]: ../struct.Deserializer.html#method.deserialize_any
     NotSelfDescribing,
 
+    /// An error created by calling [`custom()`].
+    ///
+    /// [`custom()`]: Error::custom()
     Custom(String),
+    /// An error created by calling [`invalid_type()`].
+    ///
+    /// [`invalid_type()`]: Error::invalid_type()
     InvalidType(String, String),
+    /// An error created by calling [`invalid_value()`].
+    ///
+    /// [`invalid_value()`]: Error::invalid_value()
     InvalidValue(String, String),
+    /// An error created by calling [`invalid_length()`].
+    ///
+    /// [`invalid_length()`]: Error::invalid_length()
     InvalidLength(usize, String),
+    /// An error created by calling [`unknown_variant()`].
+    ///
+    /// [`unknown_variant()`]: Error::unknown_variant()
     UnknownVariant(String, &'static [&'static str]),
+    /// An error created by calling [`unknown_field()`].
+    ///
+    /// [`unknown_field()`]: Error::unknown_field()
     UnknownField(String, &'static [&'static str]),
+    /// An error created by calling [`missing_field()`].
+    ///
+    /// [`missing_field()`]: Error::missing_field()
     MissingField(&'static str),
+    /// An error created by calling [`duplicate_field()`].
+    ///
+    /// [`duplicate_field()`]: Error::duplicate_field()
     DuplicateField(&'static str),
 }
 
