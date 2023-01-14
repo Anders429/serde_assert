@@ -1,3 +1,9 @@
+//! Tokens representing a serialized object.
+//!
+//! This module provides a [`Token`] type for representing a serialized value, as well as a
+//! [`Tokens`] type containing a set of `Token`s. `Tokens` can be compared for equality, which is
+//! useful for asserting whether serialized `Tokens` are as expected.
+
 use alloc::{
     string::String,
     vec::Vec,
@@ -10,93 +16,898 @@ use core::{
 use hashbrown::HashSet;
 use serde::de::Unexpected;
 
+/// A single serialized value.
+///
+/// A `Token` is a single serialization output produced by the [`Serializer`]. The one exception to
+/// this is the [`Unordered`] variant, which contains multiple sets of tokens that can be in any
+/// order. This is never produced by the `Serializer`, and is for use when comparing equality of
+/// [`Tokens`].
+///
+/// Normally, `Token`s are used within the [`Tokens`] struct to either compare against the output
+/// of a [`Serializer`] or to be used as input to a [`Deserializer`].
+///
+/// [`Deserializer`]: crate::Deserializer
+/// [`Serializer`]: crate::Serializer
+/// [`Unordered`]: Token::Unordered
 #[derive(Clone, Debug)]
 pub enum Token {
+    /// A [`bool`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+    /// ```
     Bool(bool),
+
+    /// An [`i8`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42i8.serialize(&serializer), Tokens(vec![Token::I8(42)]));
+    /// ```
     I8(i8),
+
+    /// An [`i16`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42i16.serialize(&serializer), Tokens(vec![Token::I16(42)]));
+    /// ```
     I16(i16),
+
+    /// An [`i32`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42i32.serialize(&serializer), Tokens(vec![Token::I32(42)]));
+    /// ```
     I32(i32),
+
+    /// An [`i64`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42i64.serialize(&serializer), Tokens(vec![Token::I64(42)]));
+    /// ```
     I64(i64),
+
     #[cfg(has_i128)]
+    /// An [`i128`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42i128.serialize(&serializer), Tokens(vec![Token::I128(42)]));
+    /// ```
     I128(i128),
+
+    /// A [`u8`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42u8.serialize(&serializer), Tokens(vec![Token::U8(42)]));
+    /// ```
     U8(u8),
+
+    /// A [`u16`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42u16.serialize(&serializer), Tokens(vec![Token::U16(42)]));
+    /// ```
     U16(u16),
+
+    /// A [`u32`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42u32.serialize(&serializer), Tokens(vec![Token::U32(42)]));
+    /// ```
     U32(u32),
+
+    /// A [`u64`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42u64.serialize(&serializer), Tokens(vec![Token::U64(42)]));
+    /// ```
     U64(u64),
+
     #[cfg(has_i128)]
+    /// A [`u128`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(42u128.serialize(&serializer), Tokens(vec![Token::U128(42)]));
+    /// ```
     U128(u128),
+
+    /// A [`f32`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     42.0f32.serialize(&serializer),
+    ///     Tokens(vec![Token::F32(42.0)])
+    /// );
+    /// ```
     F32(f32),
+
+    /// A [`f64`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     42.0f64.serialize(&serializer),
+    ///     Tokens(vec![Token::F64(42.0)])
+    /// );
+    /// ```
     F64(f64),
+
+    /// A [`char`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!('a'.serialize(&serializer), Tokens(vec![Token::Char('a')]));
+    /// ```
     Char(char),
+
+    /// A string.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     "foo".serialize(&serializer),
+    ///     Tokens(vec![Token::Str("foo".to_owned())])
+    /// );
+    /// ```
     Str(String),
+
+    /// Bytes.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_bytes::Bytes;
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Bytes::new(b"foo").serialize(&serializer),
+    ///     Tokens(vec![Token::Bytes(b"foo".to_vec())])
+    /// );
+    /// ```
     Bytes(Vec<u8>),
 
+    /// An [`Option::None`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Option::<()>::None.serialize(&serializer),
+    ///     Tokens(vec![Token::None])
+    /// );
+    /// ```
     None,
+
+    /// An [`Option::Some`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Some(()).serialize(&serializer),
+    ///     Tokens(vec![Token::Some, Token::Unit])
+    /// );
+    /// ```
     Some,
 
+    /// A unit.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(().serialize(&serializer), Tokens(vec![Token::Unit]));
+    /// ```
     Unit,
-    UnitStruct {
-        name: &'static str,
-    },
+
+    /// A unit struct.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct UnitStruct;
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     UnitStruct.serialize(&serializer),
+    ///     Tokens(vec![Token::UnitStruct { name: "UnitStruct" }])
+    /// );
+    /// ```
+    UnitStruct { name: &'static str },
+
+    /// A unit variant on an `enum`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// enum Enum {
+    ///     Unit,
+    /// }
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Enum::Unit.serialize(&serializer),
+    ///     Tokens(vec![Token::UnitVariant {
+    ///         name: "Enum",
+    ///         variant_index: 0,
+    ///         variant: "Unit"
+    ///     }])
+    /// );
+    /// ```
     UnitVariant {
         name: &'static str,
         variant_index: u32,
         variant: &'static str,
     },
 
-    NewtypeStruct {
-        name: &'static str,
-    },
+    /// A newtype struct.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct NewtypeStruct(u32);
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     NewtypeStruct(42).serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::NewtypeStruct {
+    ///             name: "NewtypeStruct"
+    ///         },
+    ///         Token::U32(42)
+    ///     ])
+    /// );
+    /// ```
+    NewtypeStruct { name: &'static str },
+
+    /// A newtype variant on an `enum`.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// enum Enum {
+    ///     Newtype(u32),
+    /// }
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Enum::Newtype(42).serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::NewtypeVariant {
+    ///             name: "Enum",
+    ///             variant_index: 0,
+    ///             variant: "Newtype"
+    ///         },
+    ///         Token::U32(42)
+    ///     ])
+    /// );
+    /// ```
     NewtypeVariant {
         name: &'static str,
         variant_index: u32,
         variant: &'static str,
     },
 
-    Seq {
-        len: Option<usize>,
-    },
+    /// A sequence.
+    ///
+    /// Must be followed by a [`SeqEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     vec![1u32, 2u32, 3u32].serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Seq { len: Some(3) },
+    ///         Token::U32(1),
+    ///         Token::U32(2),
+    ///         Token::U32(3),
+    ///         Token::SeqEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`SeqEnd`]: Token::SeqEnd
+    Seq { len: Option<usize> },
+
+    /// The end of a sequence.
+    ///
+    /// This token must follow a [`Seq`] token.
+    ///
+    /// [`Seq`]: Token::Seq
     SeqEnd,
 
-    Tuple {
-        len: usize,
-    },
+    /// A tuple.
+    ///
+    /// Must be followed by a [`TupleEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     (42u32, true).serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Tuple { len: 2 },
+    ///         Token::U32(42),
+    ///         Token::Bool(true),
+    ///         Token::TupleEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`TupleEnd`]: Token::TupleEnd
+    Tuple { len: usize },
+
+    /// The end of a tuple.
+    ///
+    /// This token must follow a [`Tuple`] token.
+    ///
+    /// [`Tuple`]: Token::Tuple
     TupleEnd,
 
-    TupleStruct {
-        name: &'static str,
-        len: usize,
-    },
+    /// A tuple struct.
+    ///
+    /// Must be followed by a [`TupleStructEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct TupleStruct(u32, bool);
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     TupleStruct(42u32, true).serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::TupleStruct {
+    ///             name: "TupleStruct",
+    ///             len: 2
+    ///         },
+    ///         Token::U32(42),
+    ///         Token::Bool(true),
+    ///         Token::TupleStructEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`TupleStructEnd`]: Token::TupleStructEnd
+    TupleStruct { name: &'static str, len: usize },
+
+    /// The end of a tuple struct.
+    ///
+    /// This token must follow a [`TupleStruct`] token.
+    ///
+    /// [`TupleStruct`]: Token::TupleStruct
     TupleStructEnd,
 
+    /// A tuple variant on an `enum`.
+    ///
+    /// Must be followed by a [`TupleVariantEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// enum Enum {
+    ///     Tuple(u32, bool),
+    /// }
+    /// struct TupleStruct(u32, bool);
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Enum::Tuple(42u32, true).serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::TupleVariant {
+    ///             name: "Enum",
+    ///             variant_index: 0,
+    ///             variant: "Tuple",
+    ///             len: 2
+    ///         },
+    ///         Token::U32(42),
+    ///         Token::Bool(true),
+    ///         Token::TupleVariantEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`TupleVariantEnd`]: Token::TupleVariantEnd
     TupleVariant {
         name: &'static str,
         variant_index: u32,
         variant: &'static str,
         len: usize,
     },
+
+    /// The end of a tuple variant.
+    ///
+    /// This token must follow a [`TupleVariant`] token.
+    ///
+    /// [`TupleVariant`]: Token::TupleVariant
     TupleVariantEnd,
 
-    Map {
-        len: Option<usize>,
-    },
+    /// A map.
+    ///
+    /// Must be followed by a [`MapEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use hashbrown::HashMap;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// let mut map = HashMap::new();
+    /// map.insert("foo", 42u32);
+    ///
+    /// assert_ok_eq!(
+    ///     map.serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Map { len: Some(1) },
+    ///         Token::Str("foo".to_owned()),
+    ///         Token::U32(42),
+    ///         Token::MapEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`MapEnd`]: Token::MapEnd
+    Map { len: Option<usize> },
+
+    /// The end of a map.
+    ///
+    /// This token must follow a [`Map`] token.
+    ///
+    /// [`Map`]: Token::Map
     MapEnd,
 
+    /// A field within a [`Struct`].
+    ///
+    /// [`Struct`]: Token::Struct
     Field(&'static str),
+
+    /// A field within a [`Struct`], skipped during serialization.
+    ///
+    /// This token is emitted when the [`SerializeStruct::skip_field()`] method is called during
+    /// serialization.
+    ///
+    /// [`SerializeStruct::skip_field()`]: serde::ser::SerializeStruct::skip_field()
+    /// [`Struct`]: Token::Struct
     SkippedField(&'static str),
-    Struct {
-        name: &'static str,
-        len: usize,
-    },
+
+    /// A struct.
+    ///
+    /// Must be followed by a [`StructEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Struct {
+    ///     foo: u32,
+    ///     bar: bool,
+    /// }
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Struct {
+    ///         foo: 42u32,
+    ///         bar: true
+    ///     }
+    ///     .serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Struct {
+    ///             name: "Struct",
+    ///             len: 2
+    ///         },
+    ///         Token::Field("foo"),
+    ///         Token::U32(42),
+    ///         Token::Field("bar"),
+    ///         Token::Bool(true),
+    ///         Token::StructEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`StructEnd`]: Token::StructEnd
+    Struct { name: &'static str, len: usize },
+
+    /// The end of a struct.
+    ///
+    /// This token must follow a [`Struct`] token.
+    ///
+    /// [`Struct`]: Token::Struct
     StructEnd,
+
+    /// A struct variant on an `enum`.
+    ///
+    /// Must be followed by a [`StructVariantEnd`] token.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// enum Enum {
+    ///     Struct { foo: u32, bar: bool },
+    /// }
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// assert_ok_eq!(
+    ///     Enum::Struct {
+    ///         foo: 42u32,
+    ///         bar: true
+    ///     }
+    ///     .serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::StructVariant {
+    ///             name: "Enum",
+    ///             variant_index: 0,
+    ///             variant: "Struct",
+    ///             len: 2
+    ///         },
+    ///         Token::Field("foo"),
+    ///         Token::U32(42),
+    ///         Token::Field("bar"),
+    ///         Token::Bool(true),
+    ///         Token::StructVariantEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`StructVariantEnd`]: Token::StructVariantEnd
     StructVariant {
         name: &'static str,
         variant_index: u32,
         variant: &'static str,
         len: usize,
     },
+
+    /// The end of a struct variant.
+    ///
+    /// This token must follow a [`StructVariant`] token.
+    ///
+    /// [`StructVariant`]: Token::StructVariant
     StructVariantEnd,
 
+    /// Unordered sets of tokens.
+    ///
+    /// This token is primarily used for evaluating output from a [`Serializer`] for containers or
+    /// other types whose internal ordering is not defined (such as a [`HashSet`]).
+    ///
+    /// This is a set of groups of tokens, where the groups may appear in any order when comparing
+    /// equality of [`Tokens`]. In other words, the outer slice is unordered, while the inner
+    /// slices are all ordered.
+    ///
+    /// Note that comparing equality of nested `Unordered` tokens is not currently supported, and
+    /// may give bogus results.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use hashbrown::HashMap;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let serializer = Serializer::builder().build();
+    ///
+    /// let mut map = HashMap::<char, u32>::new();
+    /// map.insert('a', 1);
+    /// map.insert('b', 2);
+    /// map.insert('c', 3);
+    ///
+    /// assert_ok_eq!(
+    ///     map.serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Map { len: Some(3) },
+    ///         Token::Unordered(&[
+    ///             &[Token::Char('a'), Token::U32(1)],
+    ///             &[Token::Char('b'), Token::U32(2)],
+    ///             &[Token::Char('c'), Token::U32(3)]
+    ///         ]),
+    ///         Token::MapEnd
+    ///     ])
+    /// );
+    /// ```
+    ///
+    /// [`HashSet`]: hashbrown::HashSet
+    /// [`Serializer`]: crate::Serializer
     Unordered(&'static [&'static [Token]]),
 }
 
@@ -296,6 +1107,50 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
     }
 }
 
+/// An ordered set of [`Token`]s.
+///
+/// This is simply a wrapper around a [`Vec<Token>`], providing a custom [`PartialEq`]
+/// implementation for comparing with tokens output from a [`Serializer`].
+///
+/// # Examples
+///
+/// `Tokens` are output from a [`Serializer`] and are used as input to a [`Deserializer`].
+///
+/// ## Serialization
+///
+/// ``` rust
+/// use claims::assert_ok_eq;
+/// use serde::Serialize;
+/// use serde_assert::{
+///     Serializer,
+///     Token,
+///     Tokens,
+/// };
+///
+/// let serializer = Serializer::builder().build();
+///
+/// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+/// ```
+///
+/// ## Deserialization
+///
+/// ``` rust
+/// use claims::assert_ok_eq;
+/// use serde::Deserialize;
+/// use serde_assert::{
+///     Deserializer,
+///     Token,
+///     Tokens,
+/// };
+///
+/// let mut deserializer = Deserializer::builder()
+///     .tokens(Tokens(vec![Token::Bool(true)]))
+///     .build();
+///
+/// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+/// ```
+///
+/// [`Serializer`]: crate::Serializer
 #[derive(Clone, Debug)]
 pub struct Tokens(pub Vec<Token>);
 
