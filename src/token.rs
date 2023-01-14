@@ -1150,6 +1150,7 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 /// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 /// ```
 ///
+/// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
 #[derive(Clone, Debug)]
 pub struct Tokens(pub Vec<Token>);
