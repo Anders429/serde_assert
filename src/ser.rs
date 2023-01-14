@@ -338,7 +338,7 @@ impl Serializer {
     }
 }
 
-/// A builder for a [`Serializer`]`.
+/// A builder for a [`Serializer`].
 ///
 /// Construction of a `Serializer` follows the builder pattern. Configuration options can be set on
 /// the `Builder`, and then the actual `Serializer` is constructed by calling [`build()`].
