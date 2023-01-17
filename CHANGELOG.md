@@ -4,6 +4,7 @@
 ### Added
 - `SerializeStructAs``enum` and accompanying `Builder::serialize_struct_as()` method for specifying whether `struct`s should be serialized as `serde` struct or sequence types.
 - `SerializeStruct` type to provide a more specialized `serde::SerializeStruct` implementation.
+- `Deserializer::deserialize_struct` can now interpret both `Struct` and `Seq` `Token`s.
 ### Removed
 - `CompoundSerializer` no longer implements `serde::SerializeStruct`.
 
