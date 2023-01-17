@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+### Added
+- `SerializeStructAs``enum` and accompanying `Builder::serialize_struct_as()` method for specifying whether `struct`s should be serialized as `serde` struct or sequence types.
+- `SerializeStruct` type to provide a more specialized `serde::SerializeStruct` implementation.
+### Removed
+- `CompoundSerializer` no longer implements `serde::SerializeStruct`.
+
+
 ## 0.1.0 - 2023-01-14
 ### Added
 - `Token` and `Tokens` for representing serialized values.

@@ -41,7 +41,6 @@ use serde::{
     ser::{
         SerializeMap,
         SerializeSeq,
-        SerializeStruct,
         SerializeStructVariant,
         SerializeTuple,
         SerializeTupleStruct,
@@ -49,6 +48,58 @@ use serde::{
     },
     Serialize,
 };
+
+/// Configuration for serializing `struct`s.
+///
+/// Can be passed to a [`Builder`] to determine how `struct`s should be serialized by the
+/// [`Serializer`].
+///
+/// # Example
+/// ``` rust
+/// use claims::assert_ok_eq;
+/// use serde::Serialize;
+/// use serde_assert::{
+///     ser::SerializeStructAs,
+///     Serializer,
+///     Token,
+///     Tokens,
+/// };
+/// use serde_derive::Serialize;
+///
+/// #[derive(Serialize)]
+/// struct Struct {
+///     foo: bool,
+///     bar: u32,
+/// }
+///
+/// let some_struct = Struct {
+///     foo: false,
+///     bar: 42,
+/// };
+/// let serializer = Serializer::builder()
+///     .serialize_struct_as(SerializeStructAs::Seq)
+///     .build();
+///
+/// assert_ok_eq!(
+///     some_struct.serialize(&serializer),
+///     Tokens(vec![
+///         Token::Seq { len: Some(2) },
+///         Token::Bool(false),
+///         Token::U32(42),
+///         Token::SeqEnd,
+///     ])
+/// );
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub enum SerializeStructAs {
+    /// Serialize structs using [`Token::Struct`].
+    Struct,
+    /// Serialize structs using [`Token::Seq`].
+    ///
+    /// This type of serialization is often done by compact serialization formats. Using this
+    /// setting simulates those serializers.
+    Seq,
+}
 
 /// Serializer for testing [`Serialize`] implementations.
 ///
@@ -61,6 +112,10 @@ use serde::{
 /// - [`is_human_readable()`]: Determines whether the serializer will serialize values in a
 /// readable format or a compact format. Useful for complicated structs wishing to provide
 /// different outputs depending on the readability of the serialization type.
+/// - [`serialize_struct_as()`]: Specifies how the serializer should serialize structs. Compact
+/// formats often serialize structs as sequences. By enabling this setting, tokens can be produced
+/// in this format, and can then be deserialized to ensure structs deserialized as sequences are
+/// deserialized correctly.
 ///
 /// # Example
 ///
@@ -79,10 +134,12 @@ use serde::{
 /// ```
 ///
 /// [`is_human_readable()`]: Builder::is_human_readable()
+/// [`serialize_struct_as()`]: Builder::serialize_struct_as()
 /// [`Serialize`]: serde::Serialize
 #[derive(Debug)]
 pub struct Serializer {
     is_human_readable: bool,
+    serialize_struct_as: SerializeStructAs,
 }
 
 impl<'a> ser::Serializer for &'a Serializer {
@@ -94,7 +151,7 @@ impl<'a> ser::Serializer for &'a Serializer {
     type SerializeTupleStruct = CompoundSerializer<'a>;
     type SerializeTupleVariant = CompoundSerializer<'a>;
     type SerializeMap = CompoundSerializer<'a>;
-    type SerializeStruct = CompoundSerializer<'a>;
+    type SerializeStruct = SerializeStruct<'a>;
     type SerializeStructVariant = CompoundSerializer<'a>;
 
     fn serialize_bool(self, v: bool) -> Result<Tokens, Error> {
@@ -284,12 +341,23 @@ impl<'a> ser::Serializer for &'a Serializer {
         self,
         name: &'static str,
         len: usize,
-    ) -> Result<CompoundSerializer<'a>, Error> {
-        Ok(CompoundSerializer {
-            tokens: Tokens(vec![Token::Struct { name, len }]),
+    ) -> Result<SerializeStruct<'a>, Error> {
+        match self.serialize_struct_as {
+            SerializeStructAs::Struct => Ok(SerializeStruct {
+                tokens: Tokens(vec![Token::Struct { name, len }]),
 
-            serializer: self,
-        })
+                serializer: self,
+
+                serialize_struct_as: self.serialize_struct_as,
+            }),
+            SerializeStructAs::Seq => Ok(SerializeStruct {
+                tokens: Tokens(vec![Token::Seq { len: Some(len) }]),
+
+                serializer: self,
+
+                serialize_struct_as: self.serialize_struct_as,
+            }),
+        }
     }
 
     fn serialize_struct_variant(
@@ -354,6 +422,7 @@ impl Serializer {
 #[derive(Debug, Default)]
 pub struct Builder {
     is_human_readable: Option<bool>,
+    serialize_struct_as: Option<SerializeStructAs>,
 }
 
 impl Builder {
@@ -376,6 +445,55 @@ impl Builder {
         self
     }
 
+    /// Specifies how the serializer should serialize structs.
+    ///
+    /// Compact formats often serialize structs as sequences. By enabling this setting, tokens can
+    /// be produced in this format, and can then be deserialized to ensure structs deserialized as
+    /// sequences are deserialized correctly.
+    ///
+    /// If not set, the default value is [`SerializeStructAs::Struct`].
+    ///
+    /// # Example
+    /// ``` rust
+    /// use claims::assert_ok_eq;
+    /// use serde::Serialize;
+    /// use serde_assert::{
+    ///     ser::SerializeStructAs,
+    ///     Serializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    /// use serde_derive::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Struct {
+    ///     foo: bool,
+    ///     bar: u32,
+    /// }
+    ///
+    /// let some_struct = Struct {
+    ///     foo: false,
+    ///     bar: 42,
+    /// };
+    /// let serializer = Serializer::builder()
+    ///     .serialize_struct_as(SerializeStructAs::Seq)
+    ///     .build();
+    ///
+    /// assert_ok_eq!(
+    ///     some_struct.serialize(&serializer),
+    ///     Tokens(vec![
+    ///         Token::Seq { len: Some(2) },
+    ///         Token::Bool(false),
+    ///         Token::U32(42),
+    ///         Token::SeqEnd,
+    ///     ])
+    /// );
+    /// ```
+    pub fn serialize_struct_as(&mut self, serialize_struct_as: SerializeStructAs) -> &mut Self {
+        self.serialize_struct_as = Some(serialize_struct_as);
+        self
+    }
+
     /// Build a new [`Serializer`] using this `Builder`.
     ///
     /// Constructs a new `Serializer` using the configuration options set on this `Builder`.
@@ -389,6 +507,9 @@ impl Builder {
     pub fn build(&mut self) -> Serializer {
         Serializer {
             is_human_readable: self.is_human_readable.unwrap_or(true),
+            serialize_struct_as: self
+                .serialize_struct_as
+                .unwrap_or(SerializeStructAs::Struct),
         }
     }
 }
@@ -507,30 +628,6 @@ impl SerializeMap for CompoundSerializer<'_> {
     }
 }
 
-impl SerializeStruct for CompoundSerializer<'_> {
-    type Ok = Tokens;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error>
-    where
-        T: Serialize + ?Sized,
-    {
-        self.tokens.0.push(Token::Field(key));
-        self.tokens.0.extend(value.serialize(self.serializer)?.0);
-        Ok(())
-    }
-
-    fn skip_field(&mut self, key: &'static str) -> Result<(), Error> {
-        self.tokens.0.push(Token::SkippedField(key));
-        Ok(())
-    }
-
-    fn end(mut self) -> Result<Tokens, Error> {
-        self.tokens.0.push(Token::StructEnd);
-        Ok(self.tokens)
-    }
-}
-
 impl SerializeStructVariant for CompoundSerializer<'_> {
     type Ok = Tokens;
     type Error = Error;
@@ -551,6 +648,47 @@ impl SerializeStructVariant for CompoundSerializer<'_> {
 
     fn end(mut self) -> Result<Tokens, Error> {
         self.tokens.0.push(Token::StructVariantEnd);
+        Ok(self.tokens)
+    }
+}
+
+/// Serializer for serializing `struct`s.
+///
+/// Users normally will not need to interact with this type directly. It is primarily used by
+/// [`Serialize`] implementations through the [`serde::ser::SerializeStruct`] trait it implements.
+pub struct SerializeStruct<'a> {
+    tokens: Tokens,
+
+    serializer: &'a Serializer,
+
+    serialize_struct_as: SerializeStructAs,
+}
+
+impl ser::SerializeStruct for SerializeStruct<'_> {
+    type Ok = Tokens;
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Error>
+    where
+        T: Serialize + ?Sized,
+    {
+        if matches!(self.serialize_struct_as, SerializeStructAs::Struct) {
+            self.tokens.0.push(Token::Field(key));
+        }
+        self.tokens.0.extend(value.serialize(self.serializer)?.0);
+        Ok(())
+    }
+
+    fn skip_field(&mut self, key: &'static str) -> Result<(), Error> {
+        self.tokens.0.push(Token::SkippedField(key));
+        Ok(())
+    }
+
+    fn end(mut self) -> Result<Tokens, Error> {
+        self.tokens.0.push(match self.serialize_struct_as {
+            SerializeStructAs::Struct => Token::StructEnd,
+            SerializeStructAs::Seq => Token::SeqEnd,
+        });
         Ok(self.tokens)
     }
 }
@@ -588,6 +726,7 @@ impl ser::Error for Error {
 mod tests {
     use super::{
         Error,
+        SerializeStructAs,
         Serializer,
     };
     use crate::{
@@ -1024,6 +1163,33 @@ mod tests {
                 Token::Field("c"),
                 Token::Str("foo".to_owned()),
                 Token::StructEnd,
+            ])
+        );
+    }
+
+    #[test]
+    fn serialize_struct_as_seq() {
+        #[derive(Serialize)]
+        struct Struct {
+            foo: bool,
+            bar: u32,
+        }
+
+        let some_struct = Struct {
+            foo: false,
+            bar: 42,
+        };
+        let serializer = Serializer::builder()
+            .serialize_struct_as(SerializeStructAs::Seq)
+            .build();
+
+        assert_ok_eq!(
+            some_struct.serialize(&serializer),
+            Tokens(vec![
+                Token::Seq { len: Some(2) },
+                Token::Bool(false),
+                Token::U32(42),
+                Token::SeqEnd,
             ])
         );
     }
