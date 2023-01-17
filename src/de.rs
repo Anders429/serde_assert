@@ -605,28 +605,42 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Struct {
-            name: token_name,
-            len,
-        } = token
-        {
-            if name == token_name {
-                let mut access = MapAccess {
+
+        match token {
+            Token::Struct {
+                name: token_name,
+                len,
+            } => {
+                if name == token_name {
+                    let mut access = MapAccess {
+                        deserializer: self,
+
+                        len: Some(len),
+
+                        end_token: Token::StructEnd,
+                        ended: false,
+                    };
+                    let result = visitor.visit_map(&mut access)?;
+                    access.assert_ended()?;
+                    Ok(result)
+                } else {
+                    Err(Self::Error::invalid_value((&token).into(), &visitor))
+                }
+            }
+            Token::Seq { len } => {
+                let mut access = SeqAccess {
                     deserializer: self,
 
-                    len: Some(len),
+                    len,
 
-                    end_token: Token::StructEnd,
+                    end_token: Token::SeqEnd,
                     ended: false,
                 };
-                let result = visitor.visit_map(&mut access)?;
+                let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
-            } else {
-                Err(Self::Error::invalid_value((&token).into(), &visitor))
             }
-        } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
         }
     }
 
@@ -3435,6 +3449,29 @@ mod tests {
             .build();
 
         assert_ok_eq!(Struct::deserialize(&mut deserializer), Struct);
+    }
+
+    #[test]
+    fn deserialize_struct_from_seq() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Struct {
+            foo: bool,
+            bar: u32,
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![
+                Token::Seq { len: Some(2) },
+                Token::Bool(true),
+                Token::U32(42),
+                Token::SeqEnd,
+            ]))
+            .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct { foo: true, bar: 42 }
+        );
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
