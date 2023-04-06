@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.3.0 - 2023-04-06
 ### Changed
 - `Deserializer` now defaults to setting `self_describing` to `false`.
 
