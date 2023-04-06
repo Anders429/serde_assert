@@ -3920,7 +3920,6 @@ mod tests {
                 variant_index: 0,
                 variant: "Unit",
             }]))
-            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
@@ -3940,7 +3939,6 @@ mod tests {
                 variant_index: 1,
                 variant: "Newtype",
             }]))
-            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
@@ -3964,7 +3962,6 @@ mod tests {
                 },
                 Token::TupleVariantEnd,
             ]))
-            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
@@ -3988,7 +3985,6 @@ mod tests {
                 },
                 Token::StructVariantEnd,
             ]))
-            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
@@ -4005,7 +4001,6 @@ mod tests {
     fn enum_deserializer_deserialize_any_invalid_token() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(false)]))
-            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
