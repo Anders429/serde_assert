@@ -1256,7 +1256,7 @@ impl Builder {
     ///
     /// If this is set to `false`, calls to [`deserialize_any()`] will result in an error.
     ///
-    /// If not set, the default value is `true`.
+    /// If not set, the default value is `false`.
     ///
     /// # Example
     /// ``` rust
@@ -1268,7 +1268,7 @@ impl Builder {
     ///
     /// let deserializer = Deserializer::builder()
     ///     .tokens(Tokens(vec![Token::Bool(true)]))
-    ///     .self_describing(false)
+    ///     .self_describing(true)
     ///     .build();
     /// ```
     ///
@@ -1307,7 +1307,7 @@ impl Builder {
             revisited_token: None,
 
             is_human_readable: self.is_human_readable.unwrap_or(true),
-            self_describing: self.self_describing.unwrap_or(true),
+            self_describing: self.self_describing.unwrap_or(false),
         }
     }
 }
@@ -1857,6 +1857,7 @@ mod tests {
     fn deserialize_any_bool() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Bool(true));
@@ -1866,6 +1867,7 @@ mod tests {
     fn deserialize_any_i8() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::I8(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I8(42));
@@ -1875,6 +1877,7 @@ mod tests {
     fn deserialize_any_i16() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::I16(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I16(42));
@@ -1884,6 +1887,7 @@ mod tests {
     fn deserialize_any_i32() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::I32(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I32(42));
@@ -1893,6 +1897,7 @@ mod tests {
     fn deserialize_any_i64() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::I64(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I64(42));
@@ -1903,6 +1908,7 @@ mod tests {
     fn deserialize_any_i128() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::I128(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I128(42));
@@ -1912,6 +1918,7 @@ mod tests {
     fn deserialize_any_u8() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::U8(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U8(42));
@@ -1921,6 +1928,7 @@ mod tests {
     fn deserialize_any_u16() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::U16(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U16(42));
@@ -1930,6 +1938,7 @@ mod tests {
     fn deserialize_any_u32() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::U32(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U32(42));
@@ -1939,6 +1948,7 @@ mod tests {
     fn deserialize_any_u64() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::U64(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U64(42));
@@ -1949,6 +1959,7 @@ mod tests {
     fn deserialize_any_u128() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::U128(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U128(42));
@@ -1958,6 +1969,7 @@ mod tests {
     fn deserialize_any_f32() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::F32(42.)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::F32(42.));
@@ -1967,6 +1979,7 @@ mod tests {
     fn deserialize_any_f64() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::F64(42.)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::F64(42.));
@@ -1976,6 +1989,7 @@ mod tests {
     fn deserialize_any_char() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Char('a')]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Char('a'));
@@ -1985,6 +1999,7 @@ mod tests {
     fn deserialize_any_str() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -1997,6 +2012,7 @@ mod tests {
     fn deserialize_any_bytes() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2009,6 +2025,7 @@ mod tests {
     fn deserialize_any_some() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Some, Token::U32(42)]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Option(Some(42)),);
@@ -2018,6 +2035,7 @@ mod tests {
     fn deserialize_any_none() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::None]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Option(None),);
@@ -2027,6 +2045,7 @@ mod tests {
     fn deserialize_any_unit() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Unit]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Unit,);
@@ -2036,6 +2055,7 @@ mod tests {
     fn deserialize_any_unit_struct() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::UnitStruct { name: "foo" }]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Unit,);
@@ -2049,6 +2069,7 @@ mod tests {
                 variant_index: 0,
                 variant: "unit",
             }]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::UnitVariant,);
@@ -2061,6 +2082,7 @@ mod tests {
                 Token::NewtypeStruct { name: "foo" },
                 Token::U32(42),
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeStruct(42),);
@@ -2077,6 +2099,7 @@ mod tests {
                 },
                 Token::U32(42),
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeVariant(42),);
@@ -2092,6 +2115,7 @@ mod tests {
                 Token::U32(3),
                 Token::SeqEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
@@ -2107,6 +2131,7 @@ mod tests {
                 Token::U32(3),
                 Token::TupleEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
@@ -2125,6 +2150,7 @@ mod tests {
                 Token::U32(3),
                 Token::TupleStructEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
@@ -2145,6 +2171,7 @@ mod tests {
                 Token::U32(3),
                 Token::TupleVariantEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2164,6 +2191,7 @@ mod tests {
                 Token::Bool(false),
                 Token::MapEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2179,6 +2207,7 @@ mod tests {
     fn deserialize_any_field() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Field("foo")]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2201,6 +2230,7 @@ mod tests {
                 Token::Bool(false),
                 Token::StructEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2228,6 +2258,7 @@ mod tests {
                 Token::Bool(false),
                 Token::StructVariantEnd,
             ]))
+            .self_describing(true)
             .build();
 
         assert_ok_eq!(
@@ -2243,6 +2274,7 @@ mod tests {
     fn deserialize_any_seq_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::SeqEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2255,6 +2287,7 @@ mod tests {
     fn deserialize_any_tuple_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::TupleEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2267,6 +2300,7 @@ mod tests {
     fn deserialize_any_tuple_struct_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::TupleStructEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2279,6 +2313,7 @@ mod tests {
     fn deserialize_any_tuple_variant_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::TupleVariantEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2291,6 +2326,7 @@ mod tests {
     fn deserialize_any_map_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::MapEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2303,6 +2339,7 @@ mod tests {
     fn deserialize_any_struct_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::StructEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
@@ -2315,11 +2352,24 @@ mod tests {
     fn deserialize_any_struct_variant_end_fails() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::StructVariantEnd]))
+            .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
             Error::invalid_type((&Token::StructVariantEnd).into(), &"struct Any"),
+        );
+    }
+
+    #[test]
+    fn deserialize_any_default_not_self_describing() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            Any::deserialize(&mut deserializer),
+            Error::NotSelfDescribing
         );
     }
 
@@ -3755,9 +3805,22 @@ mod tests {
     fn deserialize_ignored_any() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
+            .self_describing(true)
             .build();
 
         assert_ok!(IgnoredAny::deserialize(&mut deserializer));
+    }
+
+    #[test]
+    fn deserialize_ignored_any_default_not_self_describing() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bool(true)]))
+            .build();
+
+        assert_err_eq!(
+            IgnoredAny::deserialize(&mut deserializer),
+            Error::NotSelfDescribing
+        );
     }
 
     #[test]
@@ -5305,6 +5368,7 @@ mod tests {
                 variant_index: 0,
                 variant: "Foo",
             }]))
+            .self_describing(true)
             .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.0 - 2023-04-06
+### Changed
+- `Deserializer` now defaults to setting `self_describing` to `false`.
+
 ## 0.2.0 - 2023-01-16
 ### Added
 - `SerializeStructAs``enum` and accompanying `Builder::serialize_struct_as()` method for specifying whether `struct`s should be serialized as `serde` struct or sequence types.
