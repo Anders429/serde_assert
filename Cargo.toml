@@ -1,6 +1,6 @@
 [package]
 name = "serde_assert"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Anders Evensen"]
 edition = "2021"
 rust-version = "1.61.0"
