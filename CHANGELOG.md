@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.0 - 2023-04-06
+### Added
+- `ser::Error` now implements `PartialEq` and `Eq`.
+
 ## 0.3.0 - 2023-04-06
 ### Changed
 - `Deserializer` now defaults to setting `self_describing` to `false`.
