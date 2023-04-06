@@ -702,7 +702,7 @@ impl ser::SerializeStruct for SerializeStruct<'_> {
 ///
 /// assert_eq!(format!("{}", Error::custom("foo")), "foo");
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Error(pub String);
 
 impl Display for Error {
