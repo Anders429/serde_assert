@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.4.0 - 2023-04-06
 ### Added
 - `ser::Error` now implements `PartialEq` and `Eq`.
 
