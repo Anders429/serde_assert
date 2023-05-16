@@ -2787,37 +2787,37 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_borrowed_str() {
-        #[derive(Debug, Eq, PartialEq)]
-        struct BorrowedStr<'a>(&'a str);
+    #[derive(Debug, Eq, PartialEq)]
+    struct BorrowedStr<'a>(&'a str);
 
-        impl<'de> Deserialize<'de> for BorrowedStr<'de> {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct BorrowedStrVisitor;
+    impl<'de> Deserialize<'de> for BorrowedStr<'de> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct BorrowedStrVisitor;
 
-                impl<'de> Visitor<'de> for BorrowedStrVisitor {
-                    type Value = BorrowedStr<'de>;
+            impl<'de> Visitor<'de> for BorrowedStrVisitor {
+                type Value = BorrowedStr<'de>;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a borrowed str")
-                    }
-
-                    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        Ok(BorrowedStr(v))
-                    }
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("a borrowed str")
                 }
 
-                deserializer.deserialize_str(BorrowedStrVisitor)
+                fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(BorrowedStr(v))
+                }
             }
-        }
 
+            deserializer.deserialize_str(BorrowedStrVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_borrowed_str() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
             .build();
@@ -2830,35 +2830,6 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_str_zero_copy_disabled_error() {
-        #[derive(Debug, Eq, PartialEq)]
-        struct BorrowedStr<'a>(&'a str);
-
-        impl<'de> Deserialize<'de> for BorrowedStr<'de> {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct BorrowedStrVisitor;
-
-                impl<'de> Visitor<'de> for BorrowedStrVisitor {
-                    type Value = BorrowedStr<'de>;
-
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a borrowed str")
-                    }
-
-                    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        Ok(BorrowedStr(v))
-                    }
-                }
-
-                deserializer.deserialize_str(BorrowedStrVisitor)
-            }
-        }
-
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
             .zero_copy(false)
@@ -2957,37 +2928,37 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_borrowed_bytes() {
-        #[derive(Debug, Eq, PartialEq)]
-        struct BorrowedBytes<'a>(&'a [u8]);
+    #[derive(Debug, Eq, PartialEq)]
+    struct BorrowedBytes<'a>(&'a [u8]);
 
-        impl<'de> Deserialize<'de> for BorrowedBytes<'de> {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct BorrowedBytesVisitor;
+    impl<'de> Deserialize<'de> for BorrowedBytes<'de> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct BorrowedBytesVisitor;
 
-                impl<'de> Visitor<'de> for BorrowedBytesVisitor {
-                    type Value = BorrowedBytes<'de>;
+            impl<'de> Visitor<'de> for BorrowedBytesVisitor {
+                type Value = BorrowedBytes<'de>;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("borrowed bytes")
-                    }
-
-                    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        Ok(BorrowedBytes(v))
-                    }
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("borrowed bytes")
                 }
 
-                deserializer.deserialize_bytes(BorrowedBytesVisitor)
+                fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(BorrowedBytes(v))
+                }
             }
-        }
 
+            deserializer.deserialize_bytes(BorrowedBytesVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_borrowed_bytes() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
             .build();
@@ -3000,35 +2971,6 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_bytes_zero_copy_disabled_error() {
-        #[derive(Debug, Eq, PartialEq)]
-        struct BorrowedBytes<'a>(&'a [u8]);
-
-        impl<'de> Deserialize<'de> for BorrowedBytes<'de> {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct BorrowedBytesVisitor;
-
-                impl<'de> Visitor<'de> for BorrowedBytesVisitor {
-                    type Value = BorrowedBytes<'de>;
-
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("borrowed bytes")
-                    }
-
-                    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        Ok(BorrowedBytes(v))
-                    }
-                }
-
-                deserializer.deserialize_bytes(BorrowedBytesVisitor)
-            }
-        }
-
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
             .zero_copy(false)
