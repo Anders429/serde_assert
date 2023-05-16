@@ -60,6 +60,8 @@ use serde::{
 /// tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
 /// directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
 /// will result in an error.
+/// - [`zero_copy()`]: Defines whether zero-copy deserialization should be permitted by the
+///  `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
 ///
 /// # Example
 /// ``` rust
@@ -90,6 +92,7 @@ pub struct Deserializer<'a> {
 
     is_human_readable: bool,
     self_describing: bool,
+    zero_copy: bool,
 }
 
 impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -381,7 +384,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         if let Token::Str(v) = token {
-            visitor.visit_borrowed_str(v)
+            if self.zero_copy {
+                visitor.visit_borrowed_str(v)
+            } else {
+                visitor.visit_str(v)
+            }
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
         }
@@ -405,7 +412,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         if let Token::Bytes(v) = token {
-            visitor.visit_borrowed_bytes(v)
+            if self.zero_copy {
+                visitor.visit_borrowed_bytes(v)
+            } else {
+                visitor.visit_bytes(v)
+            }
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
         }
@@ -1196,6 +1207,7 @@ pub struct Builder {
 
     is_human_readable: Option<bool>,
     self_describing: Option<bool>,
+    zero_copy: Option<bool>,
 }
 
 impl Builder {
@@ -1276,6 +1288,32 @@ impl Builder {
         self
     }
 
+    /// Defines whether zero-copy deserialization should be permitted by the `Deserializer`,
+    /// allowing deserializations of strings and byte sequences to avoid allocations.
+    ///
+    /// If not set, the efault value is `true`.
+    ///
+    /// Some `serde` formats do not permit zero-copy deserialization. Setting this value to `false`
+    /// allows testing `Deserialize` implementations in a similar environment.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .zero_copy(false)
+    ///     .build();
+    /// ```
+    pub fn zero_copy(&mut self, zero_copy: bool) -> &mut Self {
+        self.zero_copy = Some(zero_copy);
+        self
+    }
+
     /// Build a new [`Deserializer`] using this `Builder`.
     ///
     /// Constructs a new `Deserializer` using the configuration options set on this `Builder`.
@@ -1305,6 +1343,7 @@ impl Builder {
 
             is_human_readable: self.is_human_readable.unwrap_or(true),
             self_describing: self.self_describing.unwrap_or(false),
+            zero_copy: self.zero_copy.unwrap_or(true),
         }
     }
 }
@@ -2727,6 +2766,16 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_str_zero_copy_disabled() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .zero_copy(false)
+            .build();
+
+        assert_ok_eq!(Str::deserialize(&mut deserializer), Str("foo".to_owned()));
+    }
+
+    #[test]
     fn deserialize_str_error() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
@@ -2776,6 +2825,48 @@ mod tests {
         assert_ok_eq!(
             BorrowedStr::deserialize(&mut deserializer),
             BorrowedStr("foo")
+        );
+    }
+
+    #[test]
+    fn deserialize_borrowed_str_zero_copy_disabled_error() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct BorrowedStr<'a>(&'a str);
+
+        impl<'de> Deserialize<'de> for BorrowedStr<'de> {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct BorrowedStrVisitor;
+
+                impl<'de> Visitor<'de> for BorrowedStrVisitor {
+                    type Value = BorrowedStr<'de>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a borrowed str")
+                    }
+
+                    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        Ok(BorrowedStr(v))
+                    }
+                }
+
+                deserializer.deserialize_str(BorrowedStrVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .zero_copy(false)
+            .build();
+
+        assert_err_eq!(
+            BorrowedStr::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Str("foo".to_owned())).into(), &"a borrowed str")
         );
     }
 
@@ -2842,6 +2933,19 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_bytes_zero_copy_disabled() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .zero_copy(false)
+            .build();
+
+        assert_ok_eq!(
+            Bytes::deserialize(&mut deserializer),
+            Bytes(b"foo".to_vec())
+        );
+    }
+
+    #[test]
     fn deserialize_bytes_error() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
@@ -2869,7 +2973,7 @@ mod tests {
                     type Value = BorrowedBytes<'de>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a borrowed str")
+                        formatter.write_str("borrowed bytes")
                     }
 
                     fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
@@ -2891,6 +2995,48 @@ mod tests {
         assert_ok_eq!(
             BorrowedBytes::deserialize(&mut deserializer),
             BorrowedBytes(b"foo")
+        );
+    }
+
+    #[test]
+    fn deserialize_borrowed_bytes_zero_copy_disabled_error() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct BorrowedBytes<'a>(&'a [u8]);
+
+        impl<'de> Deserialize<'de> for BorrowedBytes<'de> {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct BorrowedBytesVisitor;
+
+                impl<'de> Visitor<'de> for BorrowedBytesVisitor {
+                    type Value = BorrowedBytes<'de>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("borrowed bytes")
+                    }
+
+                    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        Ok(BorrowedBytes(v))
+                    }
+                }
+
+                deserializer.deserialize_bytes(BorrowedBytesVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .zero_copy(false)
+            .build();
+
+        assert_err_eq!(
+            BorrowedBytes::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bytes(b"foo".to_vec())).into(), &"borrowed bytes")
         );
     }
 
