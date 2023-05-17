@@ -84,6 +84,7 @@ use serde::{
 /// [`Deserialize`]: serde::Deserialize
 /// [`deserialize_any()`]: #method.deserialize_any
 /// [`self_describing()`]: Builder::self_describing()
+/// [`zero_copy()`]: Builder::zero_copy()
 #[derive(Debug)]
 pub struct Deserializer<'a> {
     tokens: token::Iter<'a>,
@@ -1291,7 +1292,7 @@ impl Builder {
     /// Defines whether zero-copy deserialization should be permitted by the `Deserializer`,
     /// allowing deserializations of strings and byte sequences to avoid allocations.
     ///
-    /// If not set, the efault value is `true`.
+    /// If not set, the default value is `true`.
     ///
     /// Some `serde` formats do not permit zero-copy deserialization. Setting this value to `false`
     /// allows testing `Deserialize` implementations in a similar environment.
