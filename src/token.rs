@@ -1380,12 +1380,20 @@ impl Drop for Iter<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
+        Iter,
         Token,
         Tokens,
     };
     use alloc::{
         borrow::ToOwned,
+        format,
         vec,
+        vec::Vec,
+    };
+    use claims::{
+        assert_none,
+        assert_some,
+        assert_some_eq,
     };
     use serde::de::Unexpected;
 
@@ -2645,5 +2653,83 @@ mod tests {
             Unexpected::from(&Token::Unordered(&[])),
             Unexpected::Other("unordered tokens")
         )
+    }
+
+    #[test]
+    fn iter_empty() {
+        let mut iter = Iter::new(Tokens(Vec::new()));
+
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_one_token() {
+        let mut iter = Iter::new(Tokens(vec![Token::Bool(true)]));
+
+        assert_some_eq!(iter.next(), &Token::Bool(true));
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_multiple_tokens() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some_eq!(iter.next(), &Token::Bool(true));
+        assert_some_eq!(iter.next(), &Token::U64(42));
+        assert_some_eq!(iter.next(), &Token::Str("foo".to_owned()));
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_empty_debug() {
+        let iter = Iter::new(Tokens(Vec::new()));
+
+        assert_eq!(format!("{:?}", iter), "Iter([])")
+    }
+
+    #[test]
+    fn iter_uniterated_debug() {
+        let iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_eq!(
+            format!("{:?}", iter),
+            "Iter([Bool(true), U64(42), Str(\"foo\")])"
+        )
+    }
+
+    #[test]
+    fn iter_partially_iterated_debug() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some!(iter.next());
+
+        assert_eq!(format!("{:?}", iter), "Iter([U64(42), Str(\"foo\")])")
+    }
+
+    #[test]
+    fn iter_fully_iterated_debug() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some!(iter.next());
+        assert_some!(iter.next());
+        assert_some!(iter.next());
+
+        assert_eq!(format!("{:?}", iter), "Iter([])")
     }
 }
