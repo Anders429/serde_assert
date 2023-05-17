@@ -5,13 +5,20 @@
 //! useful for asserting whether serialized `Tokens` are as expected.
 
 use alloc::{
+    slice,
     string::String,
     vec::Vec,
 };
 use core::{
     fmt,
-    fmt::Display,
+    fmt::{
+        Debug,
+        Display,
+    },
     iter,
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    ptr::NonNull,
 };
 use hashbrown::HashSet;
 use serde::de::Unexpected;
@@ -1277,15 +1284,127 @@ impl PartialEq for Tokens {
     }
 }
 
+/// An iterator over tokens.
+///
+/// This iterator owns the tokens, iterating over references to them.
+pub(crate) struct Iter<'a> {
+    /// A pointer to the entire buffer that is owned by this struct.
+    ///
+    /// Immutable references to the `Token`s in this buffer can exist within the lifetime `'a`.
+    buf: NonNull<Token>,
+    /// A pointer to the current position in iteration.
+    ptr: *const Token,
+    /// A pointer to the end of the allocated buffer.
+    end: *const Token,
+    /// The capacity of the underlying allocation.
+    ///
+    /// This is only used for deallocating when the struct is dropped.
+    cap: usize,
+
+    /// The lifetime of the underlying `Token`s.
+    ///
+    /// `Token`s can be borrowed for up to the lifetime `'a`, allowing for zero-copy
+    /// deserialization.
+    lifetime: PhantomData<&'a ()>,
+}
+
+impl Iter<'_> {
+    /// Creates a new `Iter` from a list of `Tokens`.
+    ///
+    /// Takes ownership of the `Tokens` and its underlying buffer.
+    pub(crate) fn new(tokens: Tokens) -> Self {
+        let mut tokens = ManuallyDrop::new(tokens);
+
+        Self {
+            // SAFETY: The pointer used by the `Vec` in `Tokens` is guaranteed to not be null.
+            buf: unsafe { NonNull::new_unchecked(tokens.0.as_mut_ptr()) },
+            ptr: tokens.0.as_ptr(),
+            // SAFETY: The resulting pointer is one byte past the end of the allocated object.
+            end: unsafe { tokens.0.as_ptr().add(tokens.0.len()) },
+            cap: tokens.0.capacity(),
+
+            lifetime: PhantomData,
+        }
+    }
+
+    /// Returns the remaining `Token`s as a slice.
+    fn as_slice(&self) -> &[Token] {
+        // SAFETY: `self.ptr` is guaranteed to be less than `self.end`, and therefore a valid
+        // pointer within the allocated object.
+        unsafe {
+            slice::from_raw_parts(
+                self.ptr,
+                #[allow(clippy::cast_sign_loss)]
+                {
+                    self.end.offset_from(self.ptr) as usize
+                },
+            )
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.ptr == self.end {
+            None
+        } else {
+            let current = self.ptr;
+            // SAFETY: Since `self.ptr` is not equal to `self.end`, it must be before it, and
+            // therefore incrementing by 1 will also result in a valid pointer within the allocated
+            // object, or 1 byte past the end if the iteration has completed.
+            self.ptr = unsafe { self.ptr.add(1) };
+            // SAFETY: The pointed-at object is guaranteed to be a valid `Token` that will live for
+            // the lifetime `'a`.
+            Some(unsafe { &*current })
+        }
+    }
+}
+
+impl Debug for Iter<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("Iter")
+            .field(&self.as_slice())
+            .finish()
+    }
+}
+
+impl Drop for Iter<'_> {
+    fn drop(&mut self) {
+        // SAFETY: The raw parts stored in this struct are guaranteed to correspond to the valid
+        // parts of a `Vec`, since the parts were obtained directly from a `Vec` originally.
+        unsafe {
+            Vec::from_raw_parts(
+                self.buf.as_ptr(),
+                #[allow(clippy::cast_sign_loss)]
+                {
+                    self.end.offset_from(self.buf.as_ptr()) as usize
+                },
+                self.cap,
+            )
+        };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
+        Iter,
         Token,
         Tokens,
     };
     use alloc::{
         borrow::ToOwned,
+        format,
         vec,
+        vec::Vec,
+    };
+    use claims::{
+        assert_none,
+        assert_some,
+        assert_some_eq,
     };
     use serde::de::Unexpected;
 
@@ -2545,5 +2664,83 @@ mod tests {
             Unexpected::from(&Token::Unordered(&[])),
             Unexpected::Other("unordered tokens")
         )
+    }
+
+    #[test]
+    fn iter_empty() {
+        let mut iter = Iter::new(Tokens(Vec::new()));
+
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_one_token() {
+        let mut iter = Iter::new(Tokens(vec![Token::Bool(true)]));
+
+        assert_some_eq!(iter.next(), &Token::Bool(true));
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_multiple_tokens() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some_eq!(iter.next(), &Token::Bool(true));
+        assert_some_eq!(iter.next(), &Token::U64(42));
+        assert_some_eq!(iter.next(), &Token::Str("foo".to_owned()));
+        assert_none!(iter.next());
+    }
+
+    #[test]
+    fn iter_empty_debug() {
+        let iter = Iter::new(Tokens(Vec::new()));
+
+        assert_eq!(format!("{:?}", iter), "Iter([])")
+    }
+
+    #[test]
+    fn iter_uniterated_debug() {
+        let iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_eq!(
+            format!("{:?}", iter),
+            "Iter([Bool(true), U64(42), Str(\"foo\")])"
+        )
+    }
+
+    #[test]
+    fn iter_partially_iterated_debug() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some!(iter.next());
+
+        assert_eq!(format!("{:?}", iter), "Iter([U64(42), Str(\"foo\")])")
+    }
+
+    #[test]
+    fn iter_fully_iterated_debug() {
+        let mut iter = Iter::new(Tokens(vec![
+            Token::Bool(true),
+            Token::U64(42),
+            Token::Str("foo".to_owned()),
+        ]));
+
+        assert_some!(iter.next());
+        assert_some!(iter.next());
+        assert_some!(iter.next());
+
+        assert_eq!(format!("{:?}", iter), "Iter([])")
     }
 }

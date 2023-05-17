@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.0 - 2023-05-16
+### Added
+- `Deserializer` can now be configured to allow (or disallow) zero-copy deserialization.
+
 ## 0.4.0 - 2023-04-06
 ### Added
 - `ser::Error` now implements `PartialEq` and `Eq`.
