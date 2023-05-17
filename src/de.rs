@@ -22,15 +22,13 @@
 //! ```
 
 use crate::{
+    token,
     Token,
     Tokens,
 };
-use alloc::{
-    string::{
-        String,
-        ToString,
-    },
-    vec,
+use alloc::string::{
+    String,
+    ToString,
 };
 use core::{
     fmt,
@@ -62,6 +60,8 @@ use serde::{
 /// tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
 /// directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
 /// will result in an error.
+/// - [`zero_copy()`]: Defines whether zero-copy deserialization should be permitted by the
+///  `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
 ///
 /// # Example
 /// ``` rust
@@ -84,17 +84,19 @@ use serde::{
 /// [`Deserialize`]: serde::Deserialize
 /// [`deserialize_any()`]: #method.deserialize_any
 /// [`self_describing()`]: Builder::self_describing()
+/// [`zero_copy()`]: Builder::zero_copy()
 #[derive(Debug)]
-pub struct Deserializer {
-    tokens: vec::IntoIter<Token>,
+pub struct Deserializer<'a> {
+    tokens: token::Iter<'a>,
 
-    revisited_token: Option<Token>,
+    revisited_token: Option<&'a Token>,
 
     is_human_readable: bool,
     self_describing: bool,
+    zero_copy: bool,
 }
 
-impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
+impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -106,24 +108,24 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         }
         let token = self.next_token()?;
         match token {
-            Token::Bool(v) => visitor.visit_bool(v),
-            Token::I8(v) => visitor.visit_i8(v),
-            Token::I16(v) => visitor.visit_i16(v),
-            Token::I32(v) => visitor.visit_i32(v),
-            Token::I64(v) => visitor.visit_i64(v),
+            Token::Bool(v) => visitor.visit_bool(*v),
+            Token::I8(v) => visitor.visit_i8(*v),
+            Token::I16(v) => visitor.visit_i16(*v),
+            Token::I32(v) => visitor.visit_i32(*v),
+            Token::I64(v) => visitor.visit_i64(*v),
             #[cfg(has_i128)]
-            Token::I128(v) => visitor.visit_i128(v),
-            Token::U8(v) => visitor.visit_u8(v),
-            Token::U16(v) => visitor.visit_u16(v),
-            Token::U32(v) => visitor.visit_u32(v),
-            Token::U64(v) => visitor.visit_u64(v),
+            Token::I128(v) => visitor.visit_i128(*v),
+            Token::U8(v) => visitor.visit_u8(*v),
+            Token::U16(v) => visitor.visit_u16(*v),
+            Token::U32(v) => visitor.visit_u32(*v),
+            Token::U64(v) => visitor.visit_u64(*v),
             #[cfg(has_i128)]
-            Token::U128(v) => visitor.visit_u128(v),
-            Token::F32(v) => visitor.visit_f32(v),
-            Token::F64(v) => visitor.visit_f64(v),
-            Token::Char(v) => visitor.visit_char(v),
-            Token::Str(v) => visitor.visit_string(v),
-            Token::Bytes(v) => visitor.visit_byte_buf(v),
+            Token::U128(v) => visitor.visit_u128(*v),
+            Token::F32(v) => visitor.visit_f32(*v),
+            Token::F64(v) => visitor.visit_f64(*v),
+            Token::Char(v) => visitor.visit_char(*v),
+            Token::Str(v) => visitor.visit_string(v.clone()),
+            Token::Bytes(v) => visitor.visit_byte_buf(v.clone()),
             Token::None => visitor.visit_none(),
             Token::Some => visitor.visit_some(self),
             Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
@@ -141,7 +143,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let mut access = SeqAccess {
                     deserializer: self,
 
-                    len,
+                    len: *len,
 
                     end_token: Token::SeqEnd,
                     ended: false,
@@ -154,7 +156,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let mut access = SeqAccess {
                     deserializer: self,
 
-                    len: Some(len),
+                    len: Some(*len),
 
                     end_token: Token::TupleEnd,
                     ended: false,
@@ -167,7 +169,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let mut access = SeqAccess {
                     deserializer: self,
 
-                    len: Some(len),
+                    len: Some(*len),
 
                     end_token: Token::TupleStructEnd,
                     ended: false,
@@ -180,7 +182,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let mut access = MapAccess {
                     deserializer: self,
 
-                    len,
+                    len: *len,
 
                     end_token: Token::MapEnd,
                     ended: false,
@@ -194,7 +196,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let mut access = MapAccess {
                     deserializer: self,
 
-                    len: Some(len),
+                    len: Some(*len),
 
                     end_token: Token::StructEnd,
                     ended: false,
@@ -203,7 +205,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             }
-            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+            _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
 
@@ -213,9 +215,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Bool(v) = token {
-            visitor.visit_bool(v)
+            visitor.visit_bool(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -225,9 +227,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::I8(v) = token {
-            visitor.visit_i8(v)
+            visitor.visit_i8(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -237,9 +239,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::I16(v) = token {
-            visitor.visit_i16(v)
+            visitor.visit_i16(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -249,9 +251,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::I32(v) = token {
-            visitor.visit_i32(v)
+            visitor.visit_i32(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -261,9 +263,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::I64(v) = token {
-            visitor.visit_i64(v)
+            visitor.visit_i64(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -274,9 +276,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::I128(v) = token {
-            visitor.visit_i128(v)
+            visitor.visit_i128(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -286,9 +288,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::U8(v) = token {
-            visitor.visit_u8(v)
+            visitor.visit_u8(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -298,9 +300,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::U16(v) = token {
-            visitor.visit_u16(v)
+            visitor.visit_u16(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -310,9 +312,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::U32(v) = token {
-            visitor.visit_u32(v)
+            visitor.visit_u32(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -322,9 +324,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::U64(v) = token {
-            visitor.visit_u64(v)
+            visitor.visit_u64(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -335,9 +337,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::U128(v) = token {
-            visitor.visit_u128(v)
+            visitor.visit_u128(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -347,9 +349,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::F32(v) = token {
-            visitor.visit_f32(v)
+            visitor.visit_f32(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -359,9 +361,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::F64(v) = token {
-            visitor.visit_f64(v)
+            visitor.visit_f64(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -371,9 +373,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Char(v) = token {
-            visitor.visit_char(v)
+            visitor.visit_char(*v)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -383,9 +385,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Str(v) = token {
-            visitor.visit_str(&v)
+            if self.zero_copy {
+                visitor.visit_borrowed_str(v)
+            } else {
+                visitor.visit_str(v)
+            }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -395,9 +401,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Str(v) = token {
-            visitor.visit_string(v)
+            visitor.visit_string(v.clone())
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -407,9 +413,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Bytes(v) = token {
-            visitor.visit_bytes(&v)
+            if self.zero_copy {
+                visitor.visit_borrowed_bytes(v)
+            } else {
+                visitor.visit_bytes(v)
+            }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -419,9 +429,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Bytes(v) = token {
-            visitor.visit_byte_buf(v)
+            visitor.visit_byte_buf(v.clone())
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -432,7 +442,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         match self.next_token()? {
             Token::Some => visitor.visit_some(self),
             Token::None => visitor.visit_none(),
-            token => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+            token => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
 
@@ -444,7 +454,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         if let Token::Unit = token {
             visitor.visit_unit()
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -458,13 +468,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::UnitStruct { name: struct_name } = token {
-            if name == struct_name {
+            if name == *struct_name {
                 visitor.visit_unit()
             } else {
-                Err(Self::Error::invalid_value((&token).into(), &visitor))
+                Err(Self::Error::invalid_value((token).into(), &visitor))
             }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -478,13 +488,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::NewtypeStruct { name: struct_name } = token {
-            if name == struct_name {
+            if name == *struct_name {
                 visitor.visit_newtype_struct(self)
             } else {
-                Err(Self::Error::invalid_value((&token).into(), &visitor))
+                Err(Self::Error::invalid_value((token).into(), &visitor))
             }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -497,7 +507,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             let mut access = SeqAccess {
                 deserializer: self,
 
-                len,
+                len: *len,
 
                 end_token: Token::SeqEnd,
                 ended: false,
@@ -506,7 +516,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             access.assert_ended()?;
             Ok(result)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -516,7 +526,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         if let Token::Tuple { len: token_len } = token {
-            if len == token_len {
+            if len == *token_len {
                 let mut access = SeqAccess {
                     deserializer: self,
 
@@ -529,10 +539,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             } else {
-                Err(Self::Error::invalid_length(token_len, &visitor))
+                Err(Self::Error::invalid_length(*token_len, &visitor))
             }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -551,10 +561,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             len: token_len,
         } = token
         {
-            if name != token_name {
-                Err(Self::Error::invalid_value((&token).into(), &visitor))
-            } else if len != token_len {
-                Err(Self::Error::invalid_length(token_len, &visitor))
+            if name != *token_name {
+                Err(Self::Error::invalid_value((token).into(), &visitor))
+            } else if len != *token_len {
+                Err(Self::Error::invalid_length(*token_len, &visitor))
             } else {
                 let mut access = SeqAccess {
                     deserializer: self,
@@ -569,7 +579,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(result)
             }
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -582,7 +592,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             let mut access = MapAccess {
                 deserializer: self,
 
-                len,
+                len: *len,
 
                 end_token: Token::MapEnd,
                 ended: false,
@@ -591,7 +601,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             access.assert_ended()?;
             Ok(result)
         } else {
-            Err(Self::Error::invalid_type((&token).into(), &visitor))
+            Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
@@ -611,11 +621,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 name: token_name,
                 len,
             } => {
-                if name == token_name {
+                if name == *token_name {
                     let mut access = MapAccess {
                         deserializer: self,
 
-                        len: Some(len),
+                        len: Some(*len),
 
                         end_token: Token::StructEnd,
                         ended: false,
@@ -624,14 +634,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                     access.assert_ended()?;
                     Ok(result)
                 } else {
-                    Err(Self::Error::invalid_value((&token).into(), &visitor))
+                    Err(Self::Error::invalid_value((token).into(), &visitor))
                 }
             }
             Token::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
-                    len,
+                    len: *len,
 
                     end_token: Token::SeqEnd,
                     ended: false,
@@ -640,7 +650,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 access.assert_ended()?;
                 Ok(result)
             }
-            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+            _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
 
@@ -667,16 +677,16 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             | Token::StructVariant {
                 name: token_name, ..
             } => {
-                if name == token_name {
+                if name == *token_name {
                     // `EnumDeserializer` takes care of the enum deserialization, which will consume
                     // this token later.
                     self.revisit_token(token);
                     visitor.visit_enum(EnumAccess { deserializer: self })
                 } else {
-                    Err(Self::Error::invalid_value((&token).into(), &visitor))
+                    Err(Self::Error::invalid_value((token).into(), &visitor))
                 }
             }
-            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+            _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
 
@@ -686,9 +696,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let token = self.next_token()?;
         match token {
-            Token::Str(v) => visitor.visit_str(&v),
+            Token::Str(v) => visitor.visit_str(v),
             Token::Field(v) => visitor.visit_str(v),
-            _ => Err(Self::Error::invalid_type((&token).into(), &visitor)),
+            _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
 
@@ -704,13 +714,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     }
 }
 
-impl Deserializer {
+impl<'a> Deserializer<'a> {
     #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }
 
-    fn next_token(&mut self) -> Result<Token, Error> {
+    fn next_token(&mut self) -> Result<&'a Token, Error> {
         loop {
             let token = self
                 .revisited_token
@@ -725,13 +735,13 @@ impl Deserializer {
         }
     }
 
-    fn revisit_token(&mut self, token: Token) {
+    fn revisit_token(&mut self, token: &'a Token) {
         self.revisited_token = Some(token);
     }
 }
 
-struct SeqAccess<'a> {
-    deserializer: &'a mut Deserializer,
+struct SeqAccess<'a, 'b> {
+    deserializer: &'a mut Deserializer<'b>,
 
     len: Option<usize>,
 
@@ -739,7 +749,7 @@ struct SeqAccess<'a> {
     ended: bool,
 }
 
-impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
+impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -750,7 +760,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
             return Ok(None);
         }
         let token = self.deserializer.next_token()?;
-        if token == self.end_token {
+        if *token == self.end_token {
             self.ended = true;
             return Ok(None);
         }
@@ -763,9 +773,9 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a> {
     }
 }
 
-impl SeqAccess<'_> {
+impl SeqAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
-        if !self.ended && self.deserializer.next_token()? != self.end_token {
+        if !self.ended && *self.deserializer.next_token()? != self.end_token {
             return Err(Error::ExpectedToken(self.end_token.clone()));
         }
         self.ended = true;
@@ -773,8 +783,8 @@ impl SeqAccess<'_> {
     }
 }
 
-struct MapAccess<'a> {
-    deserializer: &'a mut Deserializer,
+struct MapAccess<'a, 'b> {
+    deserializer: &'a mut Deserializer<'b>,
 
     len: Option<usize>,
 
@@ -782,7 +792,7 @@ struct MapAccess<'a> {
     ended: bool,
 }
 
-impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a> {
+impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -793,7 +803,7 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a> {
             return Ok(None);
         }
         let token = self.deserializer.next_token()?;
-        if token == self.end_token {
+        if *token == self.end_token {
             self.ended = true;
             return Ok(None);
         }
@@ -813,9 +823,9 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a> {
     }
 }
 
-impl MapAccess<'_> {
+impl MapAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
-        if !self.ended && self.deserializer.next_token()? != self.end_token {
+        if !self.ended && *self.deserializer.next_token()? != self.end_token {
             return Err(Error::ExpectedToken(self.end_token.clone()));
         }
         self.ended = true;
@@ -823,13 +833,13 @@ impl MapAccess<'_> {
     }
 }
 
-struct EnumAccess<'a> {
-    deserializer: &'a mut Deserializer,
+struct EnumAccess<'a, 'b> {
+    deserializer: &'a mut Deserializer<'b>,
 }
 
-impl<'a, 'de> de::EnumAccess<'de> for EnumAccess<'a> {
+impl<'a, 'de> de::EnumAccess<'de> for EnumAccess<'a, 'de> {
     type Error = Error;
-    type Variant = VariantAccess<'a>;
+    type Variant = VariantAccess<'a, 'de>;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
     where
@@ -847,11 +857,11 @@ impl<'a, 'de> de::EnumAccess<'de> for EnumAccess<'a> {
     }
 }
 
-struct VariantAccess<'a> {
-    deserializer: &'a mut Deserializer,
+struct VariantAccess<'a, 'b> {
+    deserializer: &'a mut Deserializer<'b>,
 }
 
-impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a> {
+impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -902,11 +912,11 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a> {
 /// `EnumAccess`.
 ///
 /// This is required to ensure the token can be properly deserialized into a variant.
-struct EnumDeserializer<'a> {
-    deserializer: &'a mut Deserializer,
+struct EnumDeserializer<'a, 'b> {
+    deserializer: &'a mut Deserializer<'b>,
 }
 
-impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
+impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -987,7 +997,7 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a> {
             Token::UnitVariant { variant_index, .. }
             | Token::TupleVariant { variant_index, .. }
             | Token::NewtypeVariant { variant_index, .. }
-            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(variant_index),
+            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(*variant_index),
             _ => unreachable!(),
         }
     }
@@ -1198,6 +1208,7 @@ pub struct Builder {
 
     is_human_readable: Option<bool>,
     self_describing: Option<bool>,
+    zero_copy: Option<bool>,
 }
 
 impl Builder {
@@ -1278,6 +1289,32 @@ impl Builder {
         self
     }
 
+    /// Defines whether zero-copy deserialization should be permitted by the `Deserializer`,
+    /// allowing deserializations of strings and byte sequences to avoid allocations.
+    ///
+    /// If not set, the default value is `true`.
+    ///
+    /// Some `serde` formats do not permit zero-copy deserialization. Setting this value to `false`
+    /// allows testing `Deserialize` implementations in a similar environment.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use serde_assert::{
+    ///     Deserializer,
+    ///     Token,
+    ///     Tokens,
+    /// };
+    ///
+    /// let deserializer = Deserializer::builder()
+    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    ///     .zero_copy(false)
+    ///     .build();
+    /// ```
+    pub fn zero_copy(&mut self, zero_copy: bool) -> &mut Self {
+        self.zero_copy = Some(zero_copy);
+        self
+    }
+
     /// Build a new [`Deserializer`] using this `Builder`.
     ///
     /// Constructs a new `Deserializer` using the configuration options set on this `Builder`.
@@ -1295,19 +1332,19 @@ impl Builder {
     ///     .is_human_readable(false)
     ///     .build();
     /// ```
-    pub fn build(&mut self) -> Deserializer {
+    pub fn build<'a>(&mut self) -> Deserializer<'a> {
         Deserializer {
-            tokens: self
-                .tokens
-                .clone()
-                .expect("no tokens provided to `Deserializer` `Builder`")
-                .0
-                .into_iter(),
+            tokens: token::Iter::new(
+                self.tokens
+                    .clone()
+                    .expect("no tokens provided to `Deserializer` `Builder`"),
+            ),
 
             revisited_token: None,
 
             is_human_readable: self.is_human_readable.unwrap_or(true),
             self_describing: self.self_describing.unwrap_or(false),
+            zero_copy: self.zero_copy.unwrap_or(true),
         }
     }
 }
@@ -1641,6 +1678,13 @@ mod tests {
                     E: serde::de::Error,
                 {
                     Ok(Any::Str(v))
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    Ok(Any::Bytes(v.to_owned()))
                 }
 
                 fn visit_byte_buf<E>(self, v: vec::Vec<u8>) -> Result<Self::Value, E>
@@ -2723,6 +2767,16 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_str_zero_copy_disabled() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .zero_copy(false)
+            .build();
+
+        assert_ok_eq!(Str::deserialize(&mut deserializer), Str("foo".to_owned()));
+    }
+
+    #[test]
     fn deserialize_str_error() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
@@ -2731,6 +2785,60 @@ mod tests {
         assert_err_eq!(
             Str::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"str")
+        );
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct BorrowedStr<'a>(&'a str);
+
+    impl<'de> Deserialize<'de> for BorrowedStr<'de> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct BorrowedStrVisitor;
+
+            impl<'de> Visitor<'de> for BorrowedStrVisitor {
+                type Value = BorrowedStr<'de>;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("a borrowed str")
+                }
+
+                fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(BorrowedStr(v))
+                }
+            }
+
+            deserializer.deserialize_str(BorrowedStrVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_borrowed_str() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .build();
+
+        assert_ok_eq!(
+            BorrowedStr::deserialize(&mut deserializer),
+            BorrowedStr("foo")
+        );
+    }
+
+    #[test]
+    fn deserialize_borrowed_str_zero_copy_disabled_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+            .zero_copy(false)
+            .build();
+
+        assert_err_eq!(
+            BorrowedStr::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Str("foo".to_owned())).into(), &"a borrowed str")
         );
     }
 
@@ -2797,6 +2905,19 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_bytes_zero_copy_disabled() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .zero_copy(false)
+            .build();
+
+        assert_ok_eq!(
+            Bytes::deserialize(&mut deserializer),
+            Bytes(b"foo".to_vec())
+        );
+    }
+
+    #[test]
     fn deserialize_bytes_error() {
         let mut deserializer = Deserializer::builder()
             .tokens(Tokens(vec![Token::Bool(true)]))
@@ -2805,6 +2926,60 @@ mod tests {
         assert_err_eq!(
             Bytes::deserialize(&mut deserializer),
             Error::invalid_type((&Token::Bool(true)).into(), &"bytes")
+        );
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct BorrowedBytes<'a>(&'a [u8]);
+
+    impl<'de> Deserialize<'de> for BorrowedBytes<'de> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct BorrowedBytesVisitor;
+
+            impl<'de> Visitor<'de> for BorrowedBytesVisitor {
+                type Value = BorrowedBytes<'de>;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("borrowed bytes")
+                }
+
+                fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(BorrowedBytes(v))
+                }
+            }
+
+            deserializer.deserialize_bytes(BorrowedBytesVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialize_borrowed_bytes() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .build();
+
+        assert_ok_eq!(
+            BorrowedBytes::deserialize(&mut deserializer),
+            BorrowedBytes(b"foo")
+        );
+    }
+
+    #[test]
+    fn deserialize_borrowed_bytes_zero_copy_disabled_error() {
+        let mut deserializer = Deserializer::builder()
+            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+            .zero_copy(false)
+            .build();
+
+        assert_err_eq!(
+            BorrowedBytes::deserialize(&mut deserializer),
+            Error::invalid_type((&Token::Bytes(b"foo".to_vec())).into(), &"borrowed bytes")
         );
     }
 
