@@ -1331,7 +1331,15 @@ impl Iter<'_> {
     fn as_slice(&self) -> &[Token] {
         // SAFETY: `self.ptr` is guaranteed to be less than `self.end`, and therefore a valid
         // pointer within the allocated object.
-        unsafe { slice::from_raw_parts(self.ptr, self.end.offset_from(self.ptr) as usize) }
+        unsafe {
+            slice::from_raw_parts(
+                self.ptr,
+                #[allow(clippy::cast_sign_loss)]
+                {
+                    self.end.offset_from(self.ptr) as usize
+                },
+            )
+        }
     }
 }
 
@@ -1370,7 +1378,10 @@ impl Drop for Iter<'_> {
         unsafe {
             Vec::from_raw_parts(
                 self.buf.as_ptr(),
-                self.end.offset_from(self.buf.as_ptr()) as usize,
+                #[allow(clippy::cast_sign_loss)]
+                {
+                    self.end.offset_from(self.buf.as_ptr()) as usize
+                },
                 self.cap,
             )
         };

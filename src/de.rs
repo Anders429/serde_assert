@@ -695,7 +695,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::Str(v) => visitor.visit_str(&v),
+            Token::Str(v) => visitor.visit_str(v),
             Token::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
