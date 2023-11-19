@@ -1042,7 +1042,7 @@ impl PartialEq for Token {
                 }
 
                 let mut consumed = HashSet::new();
-                'outer: for tokens in tokens_a.iter() {
+                'outer: for tokens in *tokens_a {
                     for (i, other_tokens) in tokens_b
                         .iter()
                         .enumerate()
