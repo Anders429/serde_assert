@@ -3,7 +3,7 @@ name = "serde_assert"
 version = "0.5.0"
 authors = ["Anders Evensen"]
 edition = "2021"
-rust-version = "1.61.0"
+rust-version = "1.64.0"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/Anders429/serde_assert"
@@ -12,7 +12,7 @@ categories = ["development-tools::testing", "encoding", "no-std"]
 keywords = ["serde", "testing", "serialization", "deserialization", "test"]
 
 [dependencies]
-hashbrown = "0.13.2"
+hashbrown = {version = "0.14.2", default-features = false, features = ["ahash"]}
 serde = {version = "1.0.152", default-features = false, features = ["alloc"]}
 
 [build-dependencies]
@@ -20,6 +20,6 @@ serde = {version = "1.0.152", default-features = false}
 
 [dev-dependencies]
 claims = "0.7.1"
-hashbrown = {version = "0.13.2", features = ["serde"]}
+hashbrown = {version = "0.14.2", default-features = false, features = ["ahash", "serde"]}
 serde_bytes = "0.11.8"
 serde_derive = "1.0.152"

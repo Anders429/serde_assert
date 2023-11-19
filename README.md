@@ -60,7 +60,7 @@ While some users may find that the smaller API of `serde_test` is sufficient for
 - Sophisticated comparison of serialized [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html), including allowing testing of types whose serialized form can include items in arbitrary order, such as when serializing a [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html).
 
 ## Minimum Supported Rust Version
-This crate is guaranteed to compile on stable `rustc 1.61.0` and up.
+This crate is guaranteed to compile on stable `rustc 1.64.0` and up.
 
 ## License
 This project is licensed under either of
