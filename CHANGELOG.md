@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.6.0 - 2023-11-19
 ### Changed
 - Increased version of `hashbrown` dependency to `0.14.2`.
 - Raised MSRV to `1.64.0`.
