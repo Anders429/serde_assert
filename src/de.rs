@@ -1332,6 +1332,9 @@ impl Builder {
     ///     .is_human_readable(false)
     ///     .build();
     /// ```
+    ///
+    /// # Panics
+    /// This method will panic if [`Builder::tokens()`] was never called.
     pub fn build<'a>(&mut self) -> Deserializer<'a> {
         Deserializer {
             tokens: token::Iter::new(
