@@ -4,7 +4,7 @@
 [![codecov.io](https://img.shields.io/codecov/c/gh/Anders429/serde_assert)](https://codecov.io/gh/Anders429/serde_assert)
 [![crates.io](https://img.shields.io/crates/v/serde_assert)](https://crates.io/crates/serde_assert)
 [![docs.rs](https://docs.rs/serde_assert/badge.svg)](https://docs.rs/serde_assert)
-[![MSRV](https://img.shields.io/badge/rustc-1.61.0+-yellow.svg)](#minimum-supported-rust-version)
+[![MSRV](https://img.shields.io/badge/rustc-1.63.0+-yellow.svg)](#minimum-supported-rust-version)
 [![License](https://img.shields.io/crates/l/serde_assert)](#license)
 
 Testing library for [`serde`](https://crates.io/crates/serde) [`Serialize`](https://docs.rs/serde/1.0.152/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/1.0.152/serde/trait.Deserialize.html) implementations.
@@ -60,7 +60,7 @@ While some users may find that the smaller API of `serde_test` is sufficient for
 - Sophisticated comparison of serialized [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html), including allowing testing of types whose serialized form can include items in arbitrary order, such as when serializing a [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html).
 
 ## Minimum Supported Rust Version
-This crate is guaranteed to compile on stable `rustc 1.64.0` and up.
+This crate is guaranteed to compile on stable `rustc 1.63.0` and up.
 
 ## License
 This project is licensed under either of
