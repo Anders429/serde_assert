@@ -1388,6 +1388,30 @@ impl Drop for Iter<'_> {
     }
 }
 
+/// Indicates that a type can be converted into `Tokens`.
+pub trait IntoTokens {
+    /// Creates a sequence of tokens from the value.
+    fn into_tokens(self) -> Tokens;
+}
+
+impl IntoTokens for Tokens {
+    fn into_tokens(self) -> Tokens {
+        self
+    }
+}
+
+impl IntoTokens for Vec<Token> {
+    fn into_tokens(self) -> Tokens {
+        Tokens(self)
+    }
+}
+
+impl<const N: usize> IntoTokens for [Token; N] {
+    fn into_tokens(self) -> Tokens {
+        Tokens(self.to_vec())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
