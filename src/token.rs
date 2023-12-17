@@ -219,7 +219,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();

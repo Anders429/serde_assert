@@ -114,14 +114,11 @@ extern crate alloc;
 
 pub mod de;
 pub mod ser;
-
-mod token;
+pub mod token;
 
 #[doc(inline)]
 pub use de::Deserializer;
 #[doc(inline)]
 pub use ser::Serializer;
-pub use token::{
-    Token,
-    Tokens,
-};
+#[doc(inline)]
+pub use token::Token;

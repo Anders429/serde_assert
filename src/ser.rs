@@ -20,8 +20,8 @@
 //! ```
 
 use crate::{
+    token::Tokens,
     Token,
-    Tokens,
 };
 use alloc::{
     borrow::ToOwned,
