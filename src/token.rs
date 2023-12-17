@@ -1111,7 +1111,7 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 /// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
 #[derive(Clone, Debug)]
-pub struct Tokens(pub Vec<Token>);
+pub struct Tokens(pub(crate) Vec<Token>);
 
 fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -> bool
 where
