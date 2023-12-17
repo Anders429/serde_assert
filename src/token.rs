@@ -1223,7 +1223,7 @@ where
     }
 }
 
-impl PartialEq for Tokens {
+impl Tokens {
     fn eq(&self, other: &Self) -> bool {
         let mut self_iter = self.0.iter();
         let mut other_iter = other.0.iter();
@@ -1281,6 +1281,36 @@ impl PartialEq for Tokens {
                 }
             }
         }
+    }
+}
+
+impl PartialEq for Tokens {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq(other)
+    }
+}
+
+impl PartialEq<Vec<Token>> for Tokens {
+    fn eq(&self, other: &Vec<Token>) -> bool {
+        self.eq(&other.clone().into_tokens())
+    }
+}
+
+impl<const N: usize> PartialEq<[Token; N]> for Tokens {
+    fn eq(&self, other: &[Token; N]) -> bool {
+        self.eq(&other.clone().into_tokens())
+    }
+}
+
+impl PartialEq<Tokens> for Vec<Token> {
+    fn eq(&self, other: &Tokens) -> bool {
+        other.eq(&self.clone().into_tokens())
+    }
+}
+
+impl<const N: usize> PartialEq<Tokens> for [Token; N] {
+    fn eq(&self, other: &Tokens) -> bool {
+        other.eq(&self.clone().into_tokens())
     }
 }
 

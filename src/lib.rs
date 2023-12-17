@@ -17,12 +17,11 @@
 //! use serde_assert::{
 //!     Serializer,
 //!     Token,
-//!     Tokens,
 //! };
 //!
 //! let serializer = Serializer::builder().build();
 //!
-//! assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+//! assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 //! ```
 //!
 //! ## Arbitrary Ordering
@@ -37,7 +36,6 @@
 //! use serde_assert::{
 //!     Serializer,
 //!     Token,
-//!     Tokens,
 //! };
 //!
 //! let serializer = Serializer::builder().build();
@@ -49,11 +47,11 @@
 //!
 //! assert_ok_eq!(
 //!     set.serialize(&serializer),
-//!     Tokens(vec![
+//!     [
 //!         Token::Seq { len: Some(3) },
 //!         Token::Unordered(&[&[Token::U32(1)], &[Token::U32(2)], &[Token::U32(3)],]),
 //!         Token::SeqEnd
-//!     ])
+//!     ]
 //! );
 //! ```
 //!
