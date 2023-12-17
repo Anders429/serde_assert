@@ -7,6 +7,7 @@
 use alloc::{
     slice,
     string::String,
+    vec,
     vec::Vec,
 };
 use core::{
@@ -1242,25 +1243,34 @@ impl PartialEq for Tokens {
 
 impl PartialEq<Vec<Token>> for Tokens {
     fn eq(&self, other: &Vec<Token>) -> bool {
-        self.eq(&other.clone().into_tokens())
+        self.eq(&Tokens(other.clone()))
     }
 }
 
 impl<const N: usize> PartialEq<[Token; N]> for Tokens {
     fn eq(&self, other: &[Token; N]) -> bool {
-        self.eq(&other.clone().into_tokens())
+        self.eq(&Tokens(other.to_vec()))
     }
 }
 
 impl PartialEq<Tokens> for Vec<Token> {
     fn eq(&self, other: &Tokens) -> bool {
-        other.eq(&self.clone().into_tokens())
+        other.eq(&Tokens(self.clone()))
     }
 }
 
 impl<const N: usize> PartialEq<Tokens> for [Token; N] {
     fn eq(&self, other: &Tokens) -> bool {
-        other.eq(&self.clone().into_tokens())
+        other.eq(&Tokens(self.to_vec()))
+    }
+}
+
+impl IntoIterator for Tokens {
+    type Item = Token;
+    type IntoIter = vec::IntoIter<Token>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -1365,30 +1375,6 @@ impl Drop for Iter<'_> {
                 self.cap,
             )
         };
-    }
-}
-
-/// Indicates that a type can be converted into `Tokens`.
-pub trait IntoTokens {
-    /// Creates a sequence of tokens from the value.
-    fn into_tokens(self) -> Tokens;
-}
-
-impl IntoTokens for Tokens {
-    fn into_tokens(self) -> Tokens {
-        self
-    }
-}
-
-impl IntoTokens for Vec<Token> {
-    fn into_tokens(self) -> Tokens {
-        Tokens(self)
-    }
-}
-
-impl<const N: usize> IntoTokens for [Token; N] {
-    fn into_tokens(self) -> Tokens {
-        Tokens(self.to_vec())
     }
 }
 

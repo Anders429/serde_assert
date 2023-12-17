@@ -20,7 +20,7 @@
 
 use crate::{
     token,
-    token::IntoTokens,
+    token::Tokens,
     Token,
 };
 use alloc::string::{
@@ -1305,7 +1305,7 @@ impl<T> Builder<T> {
 
 impl<T> Builder<T>
 where
-    T: Clone + IntoTokens,
+    T: Clone + IntoIterator<Item = Token>,
 {
     /// Build a new [`Deserializer`] using this `Builder`.
     ///
@@ -1328,12 +1328,13 @@ where
     /// This method will panic if [`Builder::tokens()`] was never called.
     pub fn build<'a>(&mut self) -> Deserializer<'a> {
         Deserializer {
-            tokens: token::Iter::new(
+            tokens: token::Iter::new(Tokens(
                 self.tokens
                     .clone()
                     .expect("no tokens provided to `Deserializer` `Builder`")
-                    .into_tokens(),
-            ),
+                    .into_iter()
+                    .collect(),
+            )),
 
             revisited_token: None,
 
