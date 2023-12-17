@@ -7,7 +7,6 @@
 use alloc::{
     slice,
     string::String,
-    vec,
     vec::Vec,
 };
 use core::{
@@ -1174,10 +1173,13 @@ where
     }
 }
 
-impl Tokens {
-    fn eq(&self, other: &Self) -> bool {
+impl<T> PartialEq<T> for Tokens
+where
+    for<'a> &'a T: IntoIterator<Item = &'a Token>,
+{
+    fn eq(&self, other: &T) -> bool {
         let mut self_iter = self.0.iter();
-        let mut other_iter = other.0.iter();
+        let mut other_iter = other.into_iter();
 
         loop {
             // Obtain next tokens, or return if no tokens are available.
@@ -1235,42 +1237,13 @@ impl Tokens {
     }
 }
 
-impl PartialEq for Tokens {
-    fn eq(&self, other: &Self) -> bool {
-        self.eq(other)
-    }
-}
-
-impl PartialEq<Vec<Token>> for Tokens {
-    fn eq(&self, other: &Vec<Token>) -> bool {
-        self.eq(&Tokens(other.clone()))
-    }
-}
-
-impl<const N: usize> PartialEq<[Token; N]> for Tokens {
-    fn eq(&self, other: &[Token; N]) -> bool {
-        self.eq(&Tokens(other.to_vec()))
-    }
-}
-
-impl PartialEq<Tokens> for Vec<Token> {
-    fn eq(&self, other: &Tokens) -> bool {
-        other.eq(&Tokens(self.clone()))
-    }
-}
-
-impl<const N: usize> PartialEq<Tokens> for [Token; N] {
-    fn eq(&self, other: &Tokens) -> bool {
-        other.eq(&Tokens(self.to_vec()))
-    }
-}
-
-impl IntoIterator for Tokens {
-    type Item = Token;
-    type IntoIter = vec::IntoIter<Token>;
+#[allow(clippy::into_iter_without_iter)]
+impl<'a> IntoIterator for &'a Tokens {
+    type Item = &'a Token;
+    type IntoIter = slice::Iter<'a, Token>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.0.iter()
     }
 }
 
