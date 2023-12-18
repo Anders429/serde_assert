@@ -23,12 +23,11 @@ use serde::Serialize;
 use serde_assert::{
     Serializer,
     Token,
-    Tokens,
 };
 
 let serializer = Serializer::builder().build();
 
-assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 ```
 
 ### Testing Deserialization
@@ -40,12 +39,9 @@ use serde::Deserialize;
 use serde_assert::{
     Deserializer,
     Token,
-    Tokens,
 };
 
-let mut deserializer = Deserializer::builder()
-    .tokens(Tokens(vec![Token::Bool(true)]))
-    .build();
+let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
 
 assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 ```
