@@ -2,14 +2,15 @@
 //!
 //! This library provides a [`Serializer`] and [`Deserializer`] to be used in writing unit tests to
 //! assert the behavior of manual [`Serialize`] and [`Deserialize`] implementations, respectively.
-//! The implementation behavior can be verified by using [`Tokens`] representing an arbitrary
-//! serialized state.
+//! The implementation behavior can be verified by using a sequence of [`Token`]s representing an
+//! arbitrary serialized state.
 //!
 //! # Testing Serialization
-//! The [`Serializer`] returns [`Tokens`] representing the serialization of a value. The returned
-//! `Tokens` can be checked to be equal to an expected value. Since [`Serialize::serialize()`]
-//! returns a `Result<Tokens, Error>`, it is recommended to use the [`claims`] crate to check that
-//! the returned value is both `Ok` and equal to the expected `Tokens`.
+//! The [`Serializer`] returns a sequence of [`Token`]s representing the serialization of a value.
+//! The returned `Token`s can be checked to be equal to an expected value. Since
+//! [`Serialize::serialize()`] returns a `Result<Tokens, Error>`, it is recommended to use the
+//! [`claims`] crate to check that the returned value is both `Ok` and equal to the expected
+//! sequence of `Token`s.
 //!
 //! ```
 //! use claims::assert_ok_eq;
@@ -56,9 +57,9 @@
 //! ```
 //!
 //! # Testing Deserialization
-//! A [`Deserializer`] is constructed by providing [`Tokens`] to be deserialized into a value.
-//! During testing, the [`claims`] crate can be used to assert that deserialization succeeds and
-//! returns the expected value.
+//! A [`Deserializer`] is constructed by providing a sequence of [`Token`]s to be deserialized into
+//! a value. During testing, the [`claims`] crate can be used to assert that deserialization
+//! succeeds and returns the expected value.
 //!
 //! ```
 //! use claims::assert_ok_eq;

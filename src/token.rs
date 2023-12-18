@@ -1,8 +1,11 @@
 //! Tokens representing a serialized object.
 //!
 //! This module provides a [`Token`] type for representing a serialized value, as well as a
-//! [`Tokens`] type containing a set of `Token`s. `Tokens` can be compared for equality, which is
-//! useful for asserting whether serialized `Tokens` are as expected.
+//! [`Tokens`] type containing a set of `Token`s. `Tokens` are returned by a [`Serializer`] and can
+//! be compared against a sequence of `Token`s to verify equality, which is useful for asserting
+//! whether serialized `Tokens` are as expected.
+//!
+//! [`Serializer`]: crate::Serializer
 
 use alloc::{
     slice,
@@ -29,10 +32,10 @@ use serde::de::Unexpected;
 /// A `Token` is a single serialization output produced by the [`Serializer`]. The one exception to
 /// this is the [`Unordered`] variant, which contains multiple sets of tokens that can be in any
 /// order. This is never produced by the `Serializer`, and is for use when comparing equality of
-/// [`Tokens`].
+/// sequences of [`Token`]s.
 ///
-/// Normally, `Token`s are used within the [`Tokens`] struct to either compare against the output
-/// of a [`Serializer`] or to be used as input to a [`Deserializer`].
+/// Normally, a sequence of `Token`s are used to either compare against the output of a
+/// [`Serializer`] or to be used as input to a [`Deserializer`].
 ///
 /// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
@@ -1069,14 +1072,14 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
     }
 }
 
-/// An ordered set of [`Token`]s.
+/// A sequence of [`Token`]s output by a [`Serializer`].
 ///
-/// This is simply a wrapper around a [`Vec<Token>`], providing a custom [`PartialEq`]
-/// implementation for comparing with tokens output from a [`Serializer`].
+/// `Tokens` can be compared with any other sequence of `Token`s to assert that the serialized
+/// values are as expected.
 ///
 /// # Examples
 ///
-/// `Tokens` are output from a [`Serializer`] and are used as input to a [`Deserializer`].
+/// `Tokens` are output from a [`Serializer`] and can be compared against a sequence of `Token`s.
 ///
 /// ## Serialization
 ///
@@ -1095,15 +1098,27 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 ///
 /// ## Deserialization
 ///
+/// `Tokens` obtained from a [`Serializer`] can be used as input to a [`Deserializer`].
+///
 /// ``` rust
-/// use claims::assert_ok_eq;
-/// use serde::Deserialize;
+/// use claims::{
+///     assert_ok,
+///     assert_ok_eq,
+/// };
+/// use serde::{
+///     Deserialize,
+///     Serialize,
+/// };
 /// use serde_assert::{
 ///     Deserializer,
+///     Serializer,
 ///     Token,
 /// };
 ///
-/// let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
+/// let serializer = Serializer::builder().build();
+/// let mut deserializer = Deserializer::builder()
+///     .tokens(assert_ok!(true.serialize(&serializer)))
+///     .build();
 ///
 /// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 /// ```

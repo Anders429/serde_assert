@@ -43,9 +43,9 @@ use serde::{
 
 /// Deserializer for testing [`Deserialize`] implementations.
 ///
-/// A deserializer is constructed using [`Tokens`] representing the serialized value to be
-/// deserialized. The value that is output can be compared against an expected value to ensure
-/// deserialization works correctly.
+/// A deserializer is constructed from a sequence of [`Token`]s representing the serialized value
+/// to be deserialized. The value that is output can be compared against an expected value to
+/// ensure deserialization works correctly.
 ///
 /// # Configuration
 /// The following options can be configured on the [`Builder`]:
@@ -1177,7 +1177,7 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
 /// Construction of a `Deserializer` follows the builder pattern. Configuration options can be set
 /// on the `Builder`, and then the actual `Deserializer` is constructed by calling [`build()`].
 ///
-/// Note that providing [`Tokens`] using the [`tokens()`] method is required.
+/// Note that providing a sequence of [`Token`]s using the [`tokens()`] method is required.
 ///
 /// # Example
 /// ``` rust
@@ -1205,7 +1205,7 @@ pub struct Builder<T> {
 }
 
 impl<T> Builder<T> {
-    /// Provides the [`Tokens`] to be used as the input source during deserialization.
+    /// Provides the sequence of [`Token`]s to be used as the input source during deserialization.
     ///
     /// Calling this method before [`build()`] is required.
     ///
@@ -1371,7 +1371,7 @@ impl<T> Default for Builder<T> {
 /// ```
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    /// The [`Deserializer`] reached the end of the input [`Tokens`] before deserialization was
+    /// The [`Deserializer`] reached the end of the input [`Token`]s before deserialization was
     /// completed.
     EndOfTokens,
 

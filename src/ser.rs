@@ -102,7 +102,7 @@ pub enum SerializeStructAs {
 /// Serializer for testing [`Serialize`] implementations.
 ///
 /// This serializer outputs [`Tokens`] representing the serialized value. The `Tokens` can be
-/// compared against expected `Tokens` to ensure the serialization is correct.
+/// compared against an expected sequence of [`Token`]s to ensure the serialization is correct.
 ///
 /// # Configuration
 /// The following options can be configured on the [`Builder`]:
