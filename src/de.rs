@@ -1189,13 +1189,13 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
 ///
 /// [`build()`]: Builder::build()
 /// [`tokens()`]: Builder::tokens()
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Builder {
     tokens: Option<Tokens>,
 
-    is_human_readable: Option<bool>,
-    self_describing: Option<bool>,
-    zero_copy: Option<bool>,
+    is_human_readable: bool,
+    self_describing: bool,
+    zero_copy: bool,
 }
 
 impl Builder {
@@ -1243,7 +1243,7 @@ impl Builder {
     ///     .build();
     /// ```
     pub fn is_human_readable(&mut self, is_human_readable: bool) -> &mut Self {
-        self.is_human_readable = Some(is_human_readable);
+        self.is_human_readable = is_human_readable;
         self
     }
 
@@ -1270,7 +1270,7 @@ impl Builder {
     ///
     /// [`deserialize_any()`]: ../struct.Deserializer.html#method.deserialize_any
     pub fn self_describing(&mut self, self_describing: bool) -> &mut Self {
-        self.self_describing = Some(self_describing);
+        self.self_describing = self_describing;
         self
     }
 
@@ -1295,7 +1295,7 @@ impl Builder {
     ///     .build();
     /// ```
     pub fn zero_copy(&mut self, zero_copy: bool) -> &mut Self {
-        self.zero_copy = Some(zero_copy);
+        self.zero_copy = zero_copy;
         self
     }
 
@@ -1328,9 +1328,21 @@ impl Builder {
 
             revisited_token: None,
 
-            is_human_readable: self.is_human_readable.unwrap_or(true),
-            self_describing: self.self_describing.unwrap_or(false),
-            zero_copy: self.zero_copy.unwrap_or(true),
+            is_human_readable: self.is_human_readable,
+            self_describing: self.self_describing,
+            zero_copy: self.zero_copy,
+        }
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self {
+            tokens: None,
+
+            is_human_readable: true,
+            self_describing: false,
+            zero_copy: true,
         }
     }
 }
