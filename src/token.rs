@@ -7,6 +7,7 @@
 use alloc::{
     slice,
     string::String,
+    vec,
     vec::Vec,
 };
 use core::{
@@ -1234,6 +1235,15 @@ where
                 }
             }
         }
+    }
+}
+
+impl IntoIterator for Tokens {
+    type Item = Token;
+    type IntoIter = vec::IntoIter<Token>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
