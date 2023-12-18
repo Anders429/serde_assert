@@ -127,7 +127,6 @@ pub enum Token {
     /// ```
     I64(i64),
 
-    #[cfg(has_i128)]
     /// An [`i128`].
     ///
     /// # Example
@@ -213,7 +212,6 @@ pub enum Token {
     /// ```
     U64(u64),
 
-    #[cfg(has_i128)]
     /// A [`u128`].
     ///
     /// # Example
@@ -885,13 +883,11 @@ impl PartialEq for Token {
             (Token::I16(a), Token::I16(b)) => a == b,
             (Token::I32(a), Token::I32(b)) => a == b,
             (Token::I64(a), Token::I64(b)) => a == b,
-            #[cfg(has_i128)]
             (Token::I128(a), Token::I128(b)) => a == b,
             (Token::U8(a), Token::U8(b)) => a == b,
             (Token::U16(a), Token::U16(b)) => a == b,
             (Token::U32(a), Token::U32(b)) => a == b,
             (Token::U64(a), Token::U64(b)) => a == b,
-            #[cfg(has_i128)]
             (Token::U128(a), Token::U128(b)) => a == b,
             (Token::F32(a), Token::F32(b)) => a == b,
             (Token::F64(a), Token::F64(b)) => a == b,
@@ -1034,13 +1030,11 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
             Token::I16(v) => Unexpected::Signed((*v).into()),
             Token::I32(v) => Unexpected::Signed((*v).into()),
             Token::I64(v) => Unexpected::Signed(*v),
-            #[cfg(has_i128)]
             Token::I128(..) => Unexpected::Other("i128"),
             Token::U8(v) => Unexpected::Unsigned((*v).into()),
             Token::U16(v) => Unexpected::Unsigned((*v).into()),
             Token::U32(v) => Unexpected::Unsigned((*v).into()),
             Token::U64(v) => Unexpected::Unsigned(*v),
-            #[cfg(has_i128)]
             Token::U128(..) => Unexpected::Other("u128"),
             Token::F32(v) => Unexpected::Float((*v).into()),
             Token::F64(v) => Unexpected::Float(*v),
@@ -1446,13 +1440,11 @@ mod tests {
         assert_ne!(Token::I64(42), Token::I64(43));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn token_i128_eq() {
         assert_eq!(Token::I128(42), Token::I128(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn token_i128_ne() {
         assert_ne!(Token::I128(42), Token::I128(43));
@@ -1498,13 +1490,11 @@ mod tests {
         assert_ne!(Token::U64(42), Token::U64(43));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn token_u128_eq() {
         assert_eq!(Token::U128(42), Token::U128(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn token_u128_ne() {
         assert_ne!(Token::U128(42), Token::U128(43));
@@ -2387,7 +2377,6 @@ mod tests {
         assert_eq!(Unexpected::from(&Token::I64(42)), Unexpected::Signed(42))
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn unexpected_from_token_i128() {
         assert_eq!(
@@ -2416,7 +2405,6 @@ mod tests {
         assert_eq!(Unexpected::from(&Token::U64(42)), Unexpected::Unsigned(42))
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn unexpected_from_token_u128() {
         assert_eq!(
