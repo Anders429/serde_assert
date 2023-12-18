@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+### Added
+- `Tokens` now implements `IntoIterator<Item = Token>`.
+- `&Tokens` now implements `IntoIterator<Item = &Token>`.
+- The `token` module is now public, containing both `Token` (which is also exposed in the root module) and `Tokens`.
+### Changed
+- `de::Builder::tokens()` now accepts any type that implements `Clone + IntoIterator<Item = Token>`.
+- `Tokens` is no longer exposed in the root module, instead being available at `token::Tokens`.
+- The internals of `Tokens` are no longer public. `Tokens` can no longer be constructed by user code, and is now only returned by the `Serializer`.
+- Comparison with a `Tokens` can now be done with any type that implements `IntoIterator<Item = &Token>`.
 
 ## 0.6.0 - 2023-11-19
 ### Changed

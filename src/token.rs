@@ -1,12 +1,16 @@
 //! Tokens representing a serialized object.
 //!
 //! This module provides a [`Token`] type for representing a serialized value, as well as a
-//! [`Tokens`] type containing a set of `Token`s. `Tokens` can be compared for equality, which is
-//! useful for asserting whether serialized `Tokens` are as expected.
+//! [`Tokens`] type containing a set of `Token`s. `Tokens` are returned by a [`Serializer`] and can
+//! be compared against a sequence of `Token`s to verify equality, which is useful for asserting
+//! whether serialized `Tokens` are as expected.
+//!
+//! [`Serializer`]: crate::Serializer
 
 use alloc::{
     slice,
     string::String,
+    vec,
     vec::Vec,
 };
 use core::{
@@ -28,10 +32,10 @@ use serde::de::Unexpected;
 /// A `Token` is a single serialization output produced by the [`Serializer`]. The one exception to
 /// this is the [`Unordered`] variant, which contains multiple sets of tokens that can be in any
 /// order. This is never produced by the `Serializer`, and is for use when comparing equality of
-/// [`Tokens`].
+/// sequences of [`Token`]s.
 ///
-/// Normally, `Token`s are used within the [`Tokens`] struct to either compare against the output
-/// of a [`Serializer`] or to be used as input to a [`Deserializer`].
+/// Normally, a sequence of `Token`s are used to either compare against the output of a
+/// [`Serializer`] or to be used as input to a [`Deserializer`].
 ///
 /// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
@@ -47,12 +51,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+    /// assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
     /// ```
     Bool(bool),
 
@@ -65,12 +68,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42i8.serialize(&serializer), Tokens(vec![Token::I8(42)]));
+    /// assert_ok_eq!(42i8.serialize(&serializer), [Token::I8(42)]);
     /// ```
     I8(i8),
 
@@ -83,12 +85,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42i16.serialize(&serializer), Tokens(vec![Token::I16(42)]));
+    /// assert_ok_eq!(42i16.serialize(&serializer), [Token::I16(42)]);
     /// ```
     I16(i16),
 
@@ -101,12 +102,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42i32.serialize(&serializer), Tokens(vec![Token::I32(42)]));
+    /// assert_ok_eq!(42i32.serialize(&serializer), [Token::I32(42)]);
     /// ```
     I32(i32),
 
@@ -119,12 +119,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42i64.serialize(&serializer), Tokens(vec![Token::I64(42)]));
+    /// assert_ok_eq!(42i64.serialize(&serializer), [Token::I64(42)]);
     /// ```
     I64(i64),
 
@@ -138,12 +137,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42i128.serialize(&serializer), Tokens(vec![Token::I128(42)]));
+    /// assert_ok_eq!(42i128.serialize(&serializer), [Token::I128(42)]);
     /// ```
     I128(i128),
 
@@ -156,12 +154,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42u8.serialize(&serializer), Tokens(vec![Token::U8(42)]));
+    /// assert_ok_eq!(42u8.serialize(&serializer), [Token::U8(42)]);
     /// ```
     U8(u8),
 
@@ -174,12 +171,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42u16.serialize(&serializer), Tokens(vec![Token::U16(42)]));
+    /// assert_ok_eq!(42u16.serialize(&serializer), [Token::U16(42)]);
     /// ```
     U16(u16),
 
@@ -192,12 +188,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42u32.serialize(&serializer), Tokens(vec![Token::U32(42)]));
+    /// assert_ok_eq!(42u32.serialize(&serializer), [Token::U32(42)]);
     /// ```
     U32(u32),
 
@@ -210,12 +205,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42u64.serialize(&serializer), Tokens(vec![Token::U64(42)]));
+    /// assert_ok_eq!(42u64.serialize(&serializer), [Token::U64(42)]);
     /// ```
     U64(u64),
 
@@ -229,12 +223,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(42u128.serialize(&serializer), Tokens(vec![Token::U128(42)]));
+    /// assert_ok_eq!(42u128.serialize(&serializer), [Token::U128(42)]);
     /// ```
     U128(u128),
 
@@ -247,15 +240,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(
-    ///     42.0f32.serialize(&serializer),
-    ///     Tokens(vec![Token::F32(42.0)])
-    /// );
+    /// assert_ok_eq!(42.0f32.serialize(&serializer), [Token::F32(42.0)]);
     /// ```
     F32(f32),
 
@@ -268,15 +257,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(
-    ///     42.0f64.serialize(&serializer),
-    ///     Tokens(vec![Token::F64(42.0)])
-    /// );
+    /// assert_ok_eq!(42.0f64.serialize(&serializer), [Token::F64(42.0)]);
     /// ```
     F64(f64),
 
@@ -289,12 +274,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!('a'.serialize(&serializer), Tokens(vec![Token::Char('a')]));
+    /// assert_ok_eq!('a'.serialize(&serializer), [Token::Char('a')]);
     /// ```
     Char(char),
 
@@ -307,15 +291,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(
-    ///     "foo".serialize(&serializer),
-    ///     Tokens(vec![Token::Str("foo".to_owned())])
-    /// );
+    /// assert_ok_eq!("foo".serialize(&serializer), [Token::Str("foo".to_owned())]);
     /// ```
     Str(String),
 
@@ -328,7 +308,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_bytes::Bytes;
     ///
@@ -336,7 +315,7 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     Bytes::new(b"foo").serialize(&serializer),
-    ///     Tokens(vec![Token::Bytes(b"foo".to_vec())])
+    ///     [Token::Bytes(b"foo".to_vec())]
     /// );
     /// ```
     Bytes(Vec<u8>),
@@ -350,15 +329,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(
-    ///     Option::<()>::None.serialize(&serializer),
-    ///     Tokens(vec![Token::None])
-    /// );
+    /// assert_ok_eq!(Option::<()>::None.serialize(&serializer), [Token::None]);
     /// ```
     None,
 
@@ -371,15 +346,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(
-    ///     Some(()).serialize(&serializer),
-    ///     Tokens(vec![Token::Some, Token::Unit])
-    /// );
+    /// assert_ok_eq!(Some(()).serialize(&serializer), [Token::Some, Token::Unit]);
     /// ```
     Some,
 
@@ -392,12 +363,11 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
-    /// assert_ok_eq!(().serialize(&serializer), Tokens(vec![Token::Unit]));
+    /// assert_ok_eq!(().serialize(&serializer), [Token::Unit]);
     /// ```
     Unit,
 
@@ -410,7 +380,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -421,7 +390,7 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     UnitStruct.serialize(&serializer),
-    ///     Tokens(vec![Token::UnitStruct { name: "UnitStruct" }])
+    ///     [Token::UnitStruct { name: "UnitStruct" }]
     /// );
     /// ```
     UnitStruct { name: &'static str },
@@ -435,7 +404,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -448,11 +416,11 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     Enum::Unit.serialize(&serializer),
-    ///     Tokens(vec![Token::UnitVariant {
+    ///     [Token::UnitVariant {
     ///         name: "Enum",
     ///         variant_index: 0,
     ///         variant: "Unit"
-    ///     }])
+    ///     }]
     /// );
     /// ```
     UnitVariant {
@@ -470,7 +438,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -481,12 +448,12 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     NewtypeStruct(42).serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::NewtypeStruct {
     ///             name: "NewtypeStruct"
     ///         },
     ///         Token::U32(42)
-    ///     ])
+    ///     ]
     /// );
     /// ```
     NewtypeStruct { name: &'static str },
@@ -500,7 +467,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -513,14 +479,14 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     Enum::Newtype(42).serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::NewtypeVariant {
     ///             name: "Enum",
     ///             variant_index: 0,
     ///             variant: "Newtype"
     ///         },
     ///         Token::U32(42)
-    ///     ])
+    ///     ]
     /// );
     /// ```
     NewtypeVariant {
@@ -540,20 +506,19 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
     /// assert_ok_eq!(
     ///     vec![1u32, 2u32, 3u32].serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Seq { len: Some(3) },
     ///         Token::U32(1),
     ///         Token::U32(2),
     ///         Token::U32(3),
     ///         Token::SeqEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -578,19 +543,18 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
     ///
     /// assert_ok_eq!(
     ///     (42u32, true).serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Tuple { len: 2 },
     ///         Token::U32(42),
     ///         Token::Bool(true),
     ///         Token::TupleEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -615,7 +579,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -626,7 +589,7 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     TupleStruct(42u32, true).serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::TupleStruct {
     ///             name: "TupleStruct",
     ///             len: 2
@@ -634,7 +597,7 @@ pub enum Token {
     ///         Token::U32(42),
     ///         Token::Bool(true),
     ///         Token::TupleStructEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -659,7 +622,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -673,7 +635,7 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     Enum::Tuple(42u32, true).serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::TupleVariant {
     ///             name: "Enum",
     ///             variant_index: 0,
@@ -683,7 +645,7 @@ pub enum Token {
     ///         Token::U32(42),
     ///         Token::Bool(true),
     ///         Token::TupleVariantEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -714,7 +676,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
@@ -724,12 +685,12 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     map.serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Map { len: Some(1) },
     ///         Token::Str("foo".to_owned()),
     ///         Token::U32(42),
     ///         Token::MapEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -768,7 +729,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -786,7 +746,7 @@ pub enum Token {
     ///         bar: true
     ///     }
     ///     .serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Struct {
     ///             name: "Struct",
     ///             len: 2
@@ -796,7 +756,7 @@ pub enum Token {
     ///         Token::Field("bar"),
     ///         Token::Bool(true),
     ///         Token::StructEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -821,7 +781,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -838,7 +797,7 @@ pub enum Token {
     ///         bar: true
     ///     }
     ///     .serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::StructVariant {
     ///             name: "Enum",
     ///             variant_index: 0,
@@ -850,7 +809,7 @@ pub enum Token {
     ///         Token::Field("bar"),
     ///         Token::Bool(true),
     ///         Token::StructVariantEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -889,7 +848,6 @@ pub enum Token {
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
     /// let serializer = Serializer::builder().build();
@@ -901,7 +859,7 @@ pub enum Token {
     ///
     /// assert_ok_eq!(
     ///     map.serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Map { len: Some(3) },
     ///         Token::Unordered(&[
     ///             &[Token::Char('a'), Token::U32(1)],
@@ -909,7 +867,7 @@ pub enum Token {
     ///             &[Token::Char('c'), Token::U32(3)]
     ///         ]),
     ///         Token::MapEnd
-    ///     ])
+    ///     ]
     /// );
     /// ```
     ///
@@ -1114,14 +1072,14 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
     }
 }
 
-/// An ordered set of [`Token`]s.
+/// A sequence of [`Token`]s output by a [`Serializer`].
 ///
-/// This is simply a wrapper around a [`Vec<Token>`], providing a custom [`PartialEq`]
-/// implementation for comparing with tokens output from a [`Serializer`].
+/// `Tokens` can be compared with any other sequence of `Token`s to assert that the serialized
+/// values are as expected.
 ///
 /// # Examples
 ///
-/// `Tokens` are output from a [`Serializer`] and are used as input to a [`Deserializer`].
+/// `Tokens` are output from a [`Serializer`] and can be compared against a sequence of `Token`s.
 ///
 /// ## Serialization
 ///
@@ -1131,27 +1089,35 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 /// use serde_assert::{
 ///     Serializer,
 ///     Token,
-///     Tokens,
 /// };
 ///
 /// let serializer = Serializer::builder().build();
 ///
-/// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+/// assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 /// ```
 ///
 /// ## Deserialization
 ///
+/// `Tokens` obtained from a [`Serializer`] can be used as input to a [`Deserializer`].
+///
 /// ``` rust
-/// use claims::assert_ok_eq;
-/// use serde::Deserialize;
+/// use claims::{
+///     assert_ok,
+///     assert_ok_eq,
+/// };
+/// use serde::{
+///     Deserialize,
+///     Serialize,
+/// };
 /// use serde_assert::{
 ///     Deserializer,
+///     Serializer,
 ///     Token,
-///     Tokens,
 /// };
 ///
+/// let serializer = Serializer::builder().build();
 /// let mut deserializer = Deserializer::builder()
-///     .tokens(Tokens(vec![Token::Bool(true)]))
+///     .tokens(assert_ok!(true.serialize(&serializer)))
 ///     .build();
 ///
 /// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
@@ -1160,7 +1126,7 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 /// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
 #[derive(Clone, Debug)]
-pub struct Tokens(pub Vec<Token>);
+pub struct Tokens(pub(crate) Vec<Token>);
 
 fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -> bool
 where
@@ -1223,10 +1189,13 @@ where
     }
 }
 
-impl PartialEq for Tokens {
-    fn eq(&self, other: &Self) -> bool {
+impl<T> PartialEq<T> for Tokens
+where
+    for<'a> &'a T: IntoIterator<Item = &'a Token>,
+{
+    fn eq(&self, other: &T) -> bool {
         let mut self_iter = self.0.iter();
-        let mut other_iter = other.0.iter();
+        let mut other_iter = other.into_iter();
 
         loop {
             // Obtain next tokens, or return if no tokens are available.
@@ -1281,6 +1250,25 @@ impl PartialEq for Tokens {
                 }
             }
         }
+    }
+}
+
+impl IntoIterator for Tokens {
+    type Item = Token;
+    type IntoIter = vec::IntoIter<Token>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+#[allow(clippy::into_iter_without_iter)]
+impl<'a> IntoIterator for &'a Tokens {
+    type Item = &'a Token;
+    type IntoIter = slice::Iter<'a, Token>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

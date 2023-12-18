@@ -12,17 +12,16 @@
 //! use serde_assert::{
 //!     Serializer,
 //!     Token,
-//!     Tokens,
 //! };
 //!
 //! let serializer = Serializer::builder().build();
 //!
-//! assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+//! assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 //! ```
 
 use crate::{
+    token::Tokens,
     Token,
-    Tokens,
 };
 use alloc::{
     borrow::ToOwned,
@@ -62,7 +61,6 @@ use serde::{
 ///     ser::SerializeStructAs,
 ///     Serializer,
 ///     Token,
-///     Tokens,
 /// };
 /// use serde_derive::Serialize;
 ///
@@ -82,12 +80,12 @@ use serde::{
 ///
 /// assert_ok_eq!(
 ///     some_struct.serialize(&serializer),
-///     Tokens(vec![
+///     [
 ///         Token::Seq { len: Some(2) },
 ///         Token::Bool(false),
 ///         Token::U32(42),
 ///         Token::SeqEnd,
-///     ])
+///     ]
 /// );
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -104,7 +102,7 @@ pub enum SerializeStructAs {
 /// Serializer for testing [`Serialize`] implementations.
 ///
 /// This serializer outputs [`Tokens`] representing the serialized value. The `Tokens` can be
-/// compared against expected `Tokens` to ensure the serialization is correct.
+/// compared against an expected sequence of [`Token`]s to ensure the serialization is correct.
 ///
 /// # Configuration
 /// The following options can be configured on the [`Builder`]:
@@ -125,12 +123,11 @@ pub enum SerializeStructAs {
 /// use serde_assert::{
 ///     Serializer,
 ///     Token,
-///     Tokens,
 /// };
 ///
 /// let serializer = Serializer::builder().build();
 ///
-/// assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+/// assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 /// ```
 ///
 /// [`is_human_readable()`]: Builder::is_human_readable()
@@ -461,7 +458,6 @@ impl Builder {
     ///     ser::SerializeStructAs,
     ///     Serializer,
     ///     Token,
-    ///     Tokens,
     /// };
     /// use serde_derive::Serialize;
     ///
@@ -481,12 +477,12 @@ impl Builder {
     ///
     /// assert_ok_eq!(
     ///     some_struct.serialize(&serializer),
-    ///     Tokens(vec![
+    ///     [
     ///         Token::Seq { len: Some(2) },
     ///         Token::Bool(false),
     ///         Token::U32(42),
     ///         Token::SeqEnd,
-    ///     ])
+    ///     ]
     /// );
     /// ```
     pub fn serialize_struct_as(&mut self, serialize_struct_as: SerializeStructAs) -> &mut Self {
@@ -729,10 +725,7 @@ mod tests {
         SerializeStructAs,
         Serializer,
     };
-    use crate::{
-        Token,
-        Tokens,
-    };
+    use crate::Token;
     use alloc::{
         borrow::ToOwned,
         format,
@@ -756,35 +749,35 @@ mod tests {
     fn serialize_bool() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(true.serialize(&serializer), Tokens(vec![Token::Bool(true)]));
+        assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
     }
 
     #[test]
     fn serialize_i8() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42i8.serialize(&serializer), Tokens(vec![Token::I8(42)]));
+        assert_ok_eq!(42i8.serialize(&serializer), [Token::I8(42)]);
     }
 
     #[test]
     fn serialize_i16() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42i16.serialize(&serializer), Tokens(vec![Token::I16(42)]));
+        assert_ok_eq!(42i16.serialize(&serializer), [Token::I16(42)]);
     }
 
     #[test]
     fn serialize_i32() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42i32.serialize(&serializer), Tokens(vec![Token::I32(42)]));
+        assert_ok_eq!(42i32.serialize(&serializer), [Token::I32(42)]);
     }
 
     #[test]
     fn serialize_i64() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42i64.serialize(&serializer), Tokens(vec![Token::I64(42)]));
+        assert_ok_eq!(42i64.serialize(&serializer), [Token::I64(42)]);
     }
 
     #[cfg(has_i128)]
@@ -792,35 +785,35 @@ mod tests {
     fn serialize_i128() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42i128.serialize(&serializer), Tokens(vec![Token::I128(42)]));
+        assert_ok_eq!(42i128.serialize(&serializer), [Token::I128(42)]);
     }
 
     #[test]
     fn serialize_u8() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42u8.serialize(&serializer), Tokens(vec![Token::U8(42)]));
+        assert_ok_eq!(42u8.serialize(&serializer), [Token::U8(42)]);
     }
 
     #[test]
     fn serialize_u16() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42u16.serialize(&serializer), Tokens(vec![Token::U16(42)]));
+        assert_ok_eq!(42u16.serialize(&serializer), [Token::U16(42)]);
     }
 
     #[test]
     fn serialize_u32() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42u32.serialize(&serializer), Tokens(vec![Token::U32(42)]));
+        assert_ok_eq!(42u32.serialize(&serializer), [Token::U32(42)]);
     }
 
     #[test]
     fn serialize_u64() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42u64.serialize(&serializer), Tokens(vec![Token::U64(42)]));
+        assert_ok_eq!(42u64.serialize(&serializer), [Token::U64(42)]);
     }
 
     #[cfg(has_i128)]
@@ -828,38 +821,35 @@ mod tests {
     fn serialize_u128() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42u128.serialize(&serializer), Tokens(vec![Token::U128(42)]));
+        assert_ok_eq!(42u128.serialize(&serializer), [Token::U128(42)]);
     }
 
     #[test]
     fn serialize_f32() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42f32.serialize(&serializer), Tokens(vec![Token::F32(42.)]));
+        assert_ok_eq!(42f32.serialize(&serializer), [Token::F32(42.)]);
     }
 
     #[test]
     fn serialize_f64() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(42f64.serialize(&serializer), Tokens(vec![Token::F64(42.)]));
+        assert_ok_eq!(42f64.serialize(&serializer), [Token::F64(42.)]);
     }
 
     #[test]
     fn serialize_char() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!('a'.serialize(&serializer), Tokens(vec![Token::Char('a')]));
+        assert_ok_eq!('a'.serialize(&serializer), [Token::Char('a')]);
     }
 
     #[test]
     fn serialize_str() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(
-            "a".serialize(&serializer),
-            Tokens(vec![Token::Str("a".to_owned())])
-        );
+        assert_ok_eq!("a".serialize(&serializer), [Token::Str("a".to_owned())]);
     }
 
     #[test]
@@ -868,7 +858,7 @@ mod tests {
 
         assert_ok_eq!(
             Bytes::new(b"a").serialize(&serializer),
-            Tokens(vec![Token::Bytes(b"a".to_vec())])
+            [Token::Bytes(b"a".to_vec())]
         );
     }
 
@@ -876,10 +866,7 @@ mod tests {
     fn serialize_none() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(
-            Option::<()>::None.serialize(&serializer),
-            Tokens(vec![Token::None])
-        );
+        assert_ok_eq!(Option::<()>::None.serialize(&serializer), [Token::None]);
     }
 
     #[test]
@@ -888,7 +875,7 @@ mod tests {
 
         assert_ok_eq!(
             Some(true).serialize(&serializer),
-            Tokens(vec![Token::Some, Token::Bool(true)])
+            [Token::Some, Token::Bool(true)]
         );
     }
 
@@ -896,7 +883,7 @@ mod tests {
     fn serialize_unit() {
         let serializer = Serializer::builder().build();
 
-        assert_ok_eq!(().serialize(&serializer), Tokens(vec![Token::Unit]));
+        assert_ok_eq!(().serialize(&serializer), [Token::Unit]);
     }
 
     #[test]
@@ -908,7 +895,7 @@ mod tests {
 
         assert_ok_eq!(
             Unit.serialize(&serializer),
-            Tokens(vec![Token::UnitStruct { name: "Unit" }])
+            [Token::UnitStruct { name: "Unit" }]
         );
     }
 
@@ -923,11 +910,11 @@ mod tests {
 
         assert_ok_eq!(
             Unit::Variant.serialize(&serializer),
-            Tokens(vec![Token::UnitVariant {
+            [Token::UnitVariant {
                 name: "Unit",
                 variant_index: 0,
                 variant: "Variant"
-            }])
+            }]
         );
     }
 
@@ -940,10 +927,7 @@ mod tests {
 
         assert_ok_eq!(
             Newtype(false).serialize(&serializer),
-            Tokens(vec![
-                Token::NewtypeStruct { name: "Newtype" },
-                Token::Bool(false)
-            ])
+            [Token::NewtypeStruct { name: "Newtype" }, Token::Bool(false)]
         );
     }
 
@@ -958,14 +942,14 @@ mod tests {
 
         assert_ok_eq!(
             Newtype::Variant(false).serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::NewtypeVariant {
                     name: "Newtype",
                     variant_index: 0,
                     variant: "Variant"
                 },
                 Token::Bool(false)
-            ])
+            ]
         );
     }
 
@@ -975,13 +959,13 @@ mod tests {
 
         assert_ok_eq!(
             vec![1i8, 2i8, 3i8].serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Seq { len: Some(3) },
                 Token::I8(1),
                 Token::I8(2),
                 Token::I8(3),
                 Token::SeqEnd
-            ]),
+            ],
         );
     }
 
@@ -996,7 +980,7 @@ mod tests {
 
         assert_ok_eq!(
             set.serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Seq { len: Some(3) },
                 Token::Unordered(&[
                     &[Token::Char('a')],
@@ -1004,7 +988,7 @@ mod tests {
                     &[Token::Char('c')],
                 ]),
                 Token::SeqEnd,
-            ])
+            ]
         );
     }
 
@@ -1014,13 +998,13 @@ mod tests {
 
         assert_ok_eq!(
             (1i8, 2i16, 3i32).serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Tuple { len: 3 },
                 Token::I8(1),
                 Token::I16(2),
                 Token::I32(3),
                 Token::TupleEnd
-            ]),
+            ],
         );
     }
 
@@ -1033,7 +1017,7 @@ mod tests {
 
         assert_ok_eq!(
             TupleStruct(1i8, 2i16, 3i32).serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::TupleStruct {
                     name: "TupleStruct",
                     len: 3
@@ -1042,7 +1026,7 @@ mod tests {
                 Token::I16(2),
                 Token::I32(3),
                 Token::TupleStructEnd
-            ]),
+            ],
         );
     }
 
@@ -1057,7 +1041,7 @@ mod tests {
 
         assert_ok_eq!(
             Tuple::Variant(1i8, 2i16, 3i32).serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::TupleVariant {
                     name: "Tuple",
                     variant_index: 0,
@@ -1068,7 +1052,7 @@ mod tests {
                 Token::I16(2),
                 Token::I32(3),
                 Token::TupleVariantEnd
-            ]),
+            ],
         );
     }
 
@@ -1083,7 +1067,7 @@ mod tests {
 
         assert_ok_eq!(
             map.serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Map { len: Some(3) },
                 Token::Unordered(&[
                     &[Token::I8(1), Token::Char('a')],
@@ -1091,7 +1075,7 @@ mod tests {
                     &[Token::I8(3), Token::Char('c')],
                 ]),
                 Token::MapEnd,
-            ])
+            ]
         );
     }
 
@@ -1113,7 +1097,7 @@ mod tests {
                 c: "foo".to_owned(),
             }
             .serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Struct {
                     name: "Struct",
                     len: 3,
@@ -1125,7 +1109,7 @@ mod tests {
                 Token::Field("c"),
                 Token::Str("foo".to_owned()),
                 Token::StructEnd,
-            ])
+            ]
         );
     }
 
@@ -1152,7 +1136,7 @@ mod tests {
                 c: "foo".to_owned(),
             }
             .serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Struct {
                     name: "Struct",
                     len: 2,
@@ -1163,7 +1147,7 @@ mod tests {
                 Token::Field("c"),
                 Token::Str("foo".to_owned()),
                 Token::StructEnd,
-            ])
+            ]
         );
     }
 
@@ -1185,12 +1169,12 @@ mod tests {
 
         assert_ok_eq!(
             some_struct.serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::Seq { len: Some(2) },
                 Token::Bool(false),
                 Token::U32(42),
                 Token::SeqEnd,
-            ])
+            ]
         );
     }
 
@@ -1210,7 +1194,7 @@ mod tests {
                 c: "foo".to_owned(),
             }
             .serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::StructVariant {
                     name: "Struct",
                     variant_index: 0,
@@ -1224,7 +1208,7 @@ mod tests {
                 Token::Field("c"),
                 Token::Str("foo".to_owned()),
                 Token::StructVariantEnd,
-            ])
+            ]
         );
     }
 
@@ -1253,7 +1237,7 @@ mod tests {
                 c: "foo".to_owned(),
             }
             .serialize(&serializer),
-            Tokens(vec![
+            [
                 Token::StructVariant {
                     name: "Struct",
                     variant_index: 0,
@@ -1266,7 +1250,7 @@ mod tests {
                 Token::Field("c"),
                 Token::Str("foo".to_owned()),
                 Token::StructVariantEnd,
-            ])
+            ]
         );
     }
 
@@ -1287,7 +1271,7 @@ mod tests {
 
         assert_ok_eq!(
             CollectedString("foo".to_owned()).serialize(&serializer),
-            Tokens(vec![Token::Str("foo".to_owned())])
+            [Token::Str("foo".to_owned())]
         );
     }
 
