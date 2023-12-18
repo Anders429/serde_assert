@@ -1318,7 +1318,7 @@ impl Builder {
     ///
     /// # Panics
     /// This method will panic if [`Builder::tokens()`] was never called.
-    pub fn build<'a>(&mut self) -> Deserializer<'a> {
+    pub fn build<'a>(&self) -> Deserializer<'a> {
         Deserializer {
             tokens: token::Iter::new(
                 self.tokens
