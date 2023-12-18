@@ -706,7 +706,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 impl<'a> Deserializer<'a> {
     #[must_use]
-    pub fn builder<T>() -> Builder<T> {
+    pub fn builder() -> Builder {
         Builder::default()
     }
 
@@ -1189,16 +1189,16 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
 ///
 /// [`build()`]: Builder::build()
 /// [`tokens()`]: Builder::tokens()
-#[derive(Debug)]
-pub struct Builder<T> {
-    tokens: Option<T>,
+#[derive(Debug, Default)]
+pub struct Builder {
+    tokens: Option<Tokens>,
 
     is_human_readable: Option<bool>,
     self_describing: Option<bool>,
     zero_copy: Option<bool>,
 }
 
-impl<T> Builder<T> {
+impl Builder {
     /// Provides the sequence of [`Token`]s to be used as the input source during deserialization.
     ///
     /// Calling this method before [`build()`] is required.
@@ -1214,8 +1214,11 @@ impl<T> Builder<T> {
     /// ```
     ///
     /// [`build()`]: Builder::build()
-    pub fn tokens(&mut self, tokens: T) -> &mut Self {
-        self.tokens = Some(tokens);
+    pub fn tokens<T>(&mut self, tokens: T) -> &mut Self
+    where
+        T: IntoIterator<Item = Token>,
+    {
+        self.tokens = Some(Tokens(tokens.into_iter().collect()));
         self
     }
 
@@ -1295,12 +1298,7 @@ impl<T> Builder<T> {
         self.zero_copy = Some(zero_copy);
         self
     }
-}
 
-impl<T> Builder<T>
-where
-    T: Clone + IntoIterator<Item = Token>,
-{
     /// Build a new [`Deserializer`] using this `Builder`.
     ///
     /// Constructs a new `Deserializer` using the configuration options set on this `Builder`.
@@ -1322,31 +1320,17 @@ where
     /// This method will panic if [`Builder::tokens()`] was never called.
     pub fn build<'a>(&mut self) -> Deserializer<'a> {
         Deserializer {
-            tokens: token::Iter::new(Tokens(
+            tokens: token::Iter::new(
                 self.tokens
                     .clone()
-                    .expect("no tokens provided to `Deserializer` `Builder`")
-                    .into_iter()
-                    .collect(),
-            )),
+                    .expect("no tokens provided to `Deserializer` `Builder`"),
+            ),
 
             revisited_token: None,
 
             is_human_readable: self.is_human_readable.unwrap_or(true),
             self_describing: self.self_describing.unwrap_or(false),
             zero_copy: self.zero_copy.unwrap_or(true),
-        }
-    }
-}
-
-impl<T> Default for Builder<T> {
-    fn default() -> Self {
-        Self {
-            tokens: None,
-
-            is_human_readable: None,
-            self_describing: None,
-            zero_copy: None,
         }
     }
 }
