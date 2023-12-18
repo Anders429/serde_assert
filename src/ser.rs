@@ -171,7 +171,6 @@ impl<'a> ser::Serializer for &'a Serializer {
         Ok(Tokens(vec![Token::I64(v)]))
     }
 
-    #[cfg(has_i128)]
     fn serialize_i128(self, v: i128) -> Result<Tokens, Error> {
         Ok(Tokens(vec![Token::I128(v)]))
     }
@@ -192,7 +191,6 @@ impl<'a> ser::Serializer for &'a Serializer {
         Ok(Tokens(vec![Token::U64(v)]))
     }
 
-    #[cfg(has_i128)]
     fn serialize_u128(self, v: u128) -> Result<Tokens, Error> {
         Ok(Tokens(vec![Token::U128(v)]))
     }
@@ -780,7 +778,6 @@ mod tests {
         assert_ok_eq!(42i64.serialize(&serializer), [Token::I64(42)]);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn serialize_i128() {
         let serializer = Serializer::builder().build();
@@ -816,7 +813,6 @@ mod tests {
         assert_ok_eq!(42u64.serialize(&serializer), [Token::U64(42)]);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn serialize_u128() {
         let serializer = Serializer::builder().build();

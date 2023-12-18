@@ -107,13 +107,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             Token::I16(v) => visitor.visit_i16(*v),
             Token::I32(v) => visitor.visit_i32(*v),
             Token::I64(v) => visitor.visit_i64(*v),
-            #[cfg(has_i128)]
             Token::I128(v) => visitor.visit_i128(*v),
             Token::U8(v) => visitor.visit_u8(*v),
             Token::U16(v) => visitor.visit_u16(*v),
             Token::U32(v) => visitor.visit_u32(*v),
             Token::U64(v) => visitor.visit_u64(*v),
-            #[cfg(has_i128)]
             Token::U128(v) => visitor.visit_u128(*v),
             Token::F32(v) => visitor.visit_f32(*v),
             Token::F64(v) => visitor.visit_f64(*v),
@@ -263,7 +261,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    #[cfg(has_i128)]
     fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -324,7 +321,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    #[cfg(has_i128)]
     fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -961,7 +957,6 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         self.deserialize_u32(visitor)
     }
 
-    #[cfg(has_i128)]
     fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -1003,7 +998,6 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         self.deserialize_u32(visitor)
     }
 
-    #[cfg(has_i128)]
     fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -1527,13 +1521,11 @@ mod tests {
         I16(i16),
         I32(i32),
         I64(i64),
-        #[cfg(has_i128)]
         I128(i128),
         U8(u8),
         U16(u16),
         U32(u32),
         U64(u64),
-        #[cfg(has_i128)]
         U128(u128),
         F32(f32),
         F64(f64),
@@ -1547,14 +1539,8 @@ mod tests {
         NewtypeVariant(u32),
         Seq(u32, u32, u32),
         TupleVariant(u32, u32, u32),
-        Map {
-            foo: u32,
-            bar: bool,
-        },
-        StructVariant {
-            foo: u32,
-            bar: bool,
-        },
+        Map { foo: u32, bar: bool },
+        StructVariant { foo: u32, bar: bool },
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1606,7 +1592,6 @@ mod tests {
                     Ok(Any::I64(v))
                 }
 
-                #[cfg(has_i128)]
                 fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
@@ -1642,7 +1627,6 @@ mod tests {
                     Ok(Any::U64(v))
                 }
 
-                #[cfg(has_i128)]
                 fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
@@ -1952,7 +1936,6 @@ mod tests {
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I64(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_any_i128() {
         let mut deserializer = Deserializer::builder()
@@ -2003,7 +1986,6 @@ mod tests {
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U64(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_any_u128() {
         let mut deserializer = Deserializer::builder()
@@ -2515,7 +2497,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_i128() {
         let mut deserializer = Deserializer::builder().tokens([Token::I128(42)]).build();
@@ -2523,7 +2504,6 @@ mod tests {
         assert_ok_eq!(i128::deserialize(&mut deserializer), 42);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_i128_error() {
         let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
@@ -2602,7 +2582,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_u128() {
         let mut deserializer = Deserializer::builder().tokens([Token::U128(42)]).build();
@@ -2610,7 +2589,6 @@ mod tests {
         assert_ok_eq!(u128::deserialize(&mut deserializer), 42);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_u128_error() {
         let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
@@ -4342,7 +4320,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn enum_deserializer_deserialize_i128() {
         #[derive(Debug, PartialEq)]
@@ -4698,7 +4675,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn enum_deserializer_deserialize_u128() {
         #[derive(Debug, PartialEq)]
