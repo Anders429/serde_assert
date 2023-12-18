@@ -381,7 +381,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// struct UnitStruct;
@@ -405,7 +405,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// enum Enum {
@@ -439,7 +439,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// struct NewtypeStruct(u32);
@@ -468,7 +468,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// enum Enum {
@@ -580,7 +580,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// struct TupleStruct(u32, bool);
@@ -623,7 +623,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// enum Enum {
@@ -730,7 +730,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// struct Struct {
@@ -782,7 +782,7 @@ pub enum Token {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// enum Enum {

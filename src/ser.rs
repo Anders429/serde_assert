@@ -62,7 +62,7 @@ use serde::{
 ///     Serializer,
 ///     Token,
 /// };
-/// use serde_derive::Serialize;
+/// # use serde_derive::Serialize;
 ///
 /// #[derive(Serialize)]
 /// struct Struct {
@@ -459,7 +459,7 @@ impl Builder {
     ///     Serializer,
     ///     Token,
     /// };
-    /// use serde_derive::Serialize;
+    /// # use serde_derive::Serialize;
     ///
     /// #[derive(Serialize)]
     /// struct Struct {
