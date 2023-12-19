@@ -41,7 +41,7 @@ use serde_assert::{
     Token,
 };
 
-let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
+let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
 assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 ```
