@@ -414,10 +414,10 @@ impl Serializer {
 /// ```
 ///
 /// [`build()`]: Builder::build()
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Builder {
-    is_human_readable: Option<bool>,
-    serialize_struct_as: Option<SerializeStructAs>,
+    is_human_readable: bool,
+    serialize_struct_as: SerializeStructAs,
 }
 
 impl Builder {
@@ -436,7 +436,7 @@ impl Builder {
     /// let serializer = Serializer::builder().is_human_readable(false).build();
     /// ```
     pub fn is_human_readable(&mut self, is_human_readable: bool) -> &mut Self {
-        self.is_human_readable = Some(is_human_readable);
+        self.is_human_readable = is_human_readable;
         self
     }
 
@@ -484,7 +484,7 @@ impl Builder {
     /// );
     /// ```
     pub fn serialize_struct_as(&mut self, serialize_struct_as: SerializeStructAs) -> &mut Self {
-        self.serialize_struct_as = Some(serialize_struct_as);
+        self.serialize_struct_as = serialize_struct_as;
         self
     }
 
@@ -500,10 +500,17 @@ impl Builder {
     /// ```
     pub fn build(&mut self) -> Serializer {
         Serializer {
-            is_human_readable: self.is_human_readable.unwrap_or(true),
-            serialize_struct_as: self
-                .serialize_struct_as
-                .unwrap_or(SerializeStructAs::Struct),
+            is_human_readable: self.is_human_readable,
+            serialize_struct_as: self.serialize_struct_as,
+        }
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self {
+            is_human_readable: true,
+            serialize_struct_as: SerializeStructAs::Struct,
         }
     }
 }
