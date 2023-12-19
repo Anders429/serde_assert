@@ -69,7 +69,7 @@
 //!     Token,
 //! };
 //!
-//! let mut deserializer = Deserializer::builder().tokens([Token::Bool(true)]).build();
+//! let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 //!
 //! assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 //! ```
@@ -95,9 +95,7 @@
 //! let value = true;
 //!
 //! let serializer = Serializer::builder().build();
-//! let mut deserializer = Deserializer::builder()
-//!     .tokens(assert_ok!(value.serialize(&serializer)))
-//!     .build();
+//! let mut deserializer = Deserializer::builder(assert_ok!(value.serialize(&serializer))).build();
 //!
 //! assert_ok_eq!(bool::deserialize(&mut deserializer), value);
 //! ```
