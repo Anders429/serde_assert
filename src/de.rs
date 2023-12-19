@@ -1174,8 +1174,6 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
 /// Construction of a `Deserializer` follows the builder pattern. Configuration options can be set
 /// on the `Builder`, and then the actual `Deserializer` is constructed by calling [`build()`].
 ///
-/// Note that providing a sequence of [`Token`]s using the [::builder()`] method is required.
-///
 /// # Example
 /// ``` rust
 /// use serde_assert::{
@@ -1304,6 +1302,7 @@ impl Builder {
     ///     .is_human_readable(false)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn build<'a>(&self) -> Deserializer<'a> {
         Deserializer {
             tokens: token::Iter::new(self.tokens.clone()),
