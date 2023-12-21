@@ -1018,50 +1018,6 @@ impl Display for Token {
     }
 }
 
-impl<'a> From<&'a Token> for Unexpected<'a> {
-    fn from(token: &'a Token) -> Self {
-        match token {
-            Token::Bool(v) => Unexpected::Bool(*v),
-            Token::I8(v) => Unexpected::Signed((*v).into()),
-            Token::I16(v) => Unexpected::Signed((*v).into()),
-            Token::I32(v) => Unexpected::Signed((*v).into()),
-            Token::I64(v) => Unexpected::Signed(*v),
-            Token::I128(..) => Unexpected::Other("i128"),
-            Token::U8(v) => Unexpected::Unsigned((*v).into()),
-            Token::U16(v) => Unexpected::Unsigned((*v).into()),
-            Token::U32(v) => Unexpected::Unsigned((*v).into()),
-            Token::U64(v) => Unexpected::Unsigned(*v),
-            Token::U128(..) => Unexpected::Other("u128"),
-            Token::F32(v) => Unexpected::Float((*v).into()),
-            Token::F64(v) => Unexpected::Float(*v),
-            Token::Char(v) => Unexpected::Char(*v),
-            Token::Str(v) => Unexpected::Str(v),
-            Token::Bytes(v) => Unexpected::Bytes(v),
-            Token::Some | Token::None => Unexpected::Option,
-            Token::Unit | Token::UnitStruct { .. } => Unexpected::Unit,
-            Token::UnitVariant { .. } => Unexpected::UnitVariant,
-            Token::NewtypeStruct { .. } => Unexpected::NewtypeStruct,
-            Token::NewtypeVariant { .. } => Unexpected::NewtypeVariant,
-            Token::Seq { .. } | Token::Tuple { .. } => Unexpected::Seq,
-            Token::SeqEnd => Unexpected::Other("SeqEnd"),
-            Token::TupleEnd => Unexpected::Other("TupleEnd"),
-            Token::TupleStruct { .. } => Unexpected::Other("TupleStruct"),
-            Token::TupleStructEnd => Unexpected::Other("TupleStructEnd"),
-            Token::TupleVariant { .. } => Unexpected::TupleVariant,
-            Token::TupleVariantEnd => Unexpected::Other("TupleVariantEnd"),
-            Token::Map { .. } => Unexpected::Map,
-            Token::MapEnd => Unexpected::Other("MapEnd"),
-            Token::Field(..) => Unexpected::Other("Field"),
-            Token::SkippedField(..) => Unexpected::Other("SkippedField"),
-            Token::Struct { .. } => Unexpected::Other("Struct"),
-            Token::StructEnd => Unexpected::Other("StructEnd"),
-            Token::StructVariant { .. } => Unexpected::StructVariant,
-            Token::StructVariantEnd => Unexpected::Other("StructVariantEnd"),
-            Token::Unordered(..) => Unexpected::Other("unordered tokens"),
-        }
-    }
-}
-
 /// An enumeration of all tokens that can be emitted by the [`Serializer`].
 ///
 /// [`Serializer`]: crate::Serializer
@@ -2722,124 +2678,160 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_bool() {
-        assert_eq!(Unexpected::from(&Token::Bool(true)), Unexpected::Bool(true))
-    }
-
-    #[test]
-    fn unexpected_from_token_i8() {
-        assert_eq!(Unexpected::from(&Token::I8(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i16() {
-        assert_eq!(Unexpected::from(&Token::I16(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i32() {
-        assert_eq!(Unexpected::from(&Token::I32(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i64() {
-        assert_eq!(Unexpected::from(&Token::I64(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i128() {
+    fn unexpected_from_canonical_token_bool() {
         assert_eq!(
-            Unexpected::from(&Token::I128(42)),
+            Unexpected::from(&CanonicalToken::Bool(true)),
+            Unexpected::Bool(true)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i8() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I8(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i16() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I16(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i32() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I32(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I64(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i128() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I128(42)),
             Unexpected::Other("i128")
         )
     }
 
     #[test]
-    fn unexpected_from_token_u8() {
-        assert_eq!(Unexpected::from(&Token::U8(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u16() {
-        assert_eq!(Unexpected::from(&Token::U16(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u32() {
-        assert_eq!(Unexpected::from(&Token::U32(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u64() {
-        assert_eq!(Unexpected::from(&Token::U64(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u128() {
+    fn unexpected_from_canonical_token_u8() {
         assert_eq!(
-            Unexpected::from(&Token::U128(42)),
+            Unexpected::from(&CanonicalToken::U8(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u16() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U16(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u32() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U32(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U64(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u128() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U128(42)),
             Unexpected::Other("u128")
         )
     }
 
     #[test]
-    fn unexpected_from_token_f32() {
-        assert_eq!(Unexpected::from(&Token::F32(42.)), Unexpected::Float(42.))
-    }
-
-    #[test]
-    fn unexpected_from_token_f64() {
-        assert_eq!(Unexpected::from(&Token::F64(42.)), Unexpected::Float(42.))
-    }
-
-    #[test]
-    fn unexpected_from_token_char() {
-        assert_eq!(Unexpected::from(&Token::Char('a')), Unexpected::Char('a'))
-    }
-
-    #[test]
-    fn unexpected_from_token_str() {
+    fn unexpected_from_canonical_token_f32() {
         assert_eq!(
-            Unexpected::from(&Token::Str("foo".to_owned())),
+            Unexpected::from(&CanonicalToken::F32(42.)),
+            Unexpected::Float(42.)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_f64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::F64(42.)),
+            Unexpected::Float(42.)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_char() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Char('a')),
+            Unexpected::Char('a')
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_str() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Str("foo".to_owned())),
             Unexpected::Str("foo")
         )
     }
 
     #[test]
-    fn unexpected_from_token_bytes() {
+    fn unexpected_from_canonical_token_bytes() {
         assert_eq!(
-            Unexpected::from(&Token::Bytes(b"foo".to_vec())),
+            Unexpected::from(&CanonicalToken::Bytes(b"foo".to_vec())),
             Unexpected::Bytes(b"foo")
         )
     }
 
     #[test]
-    fn unexpected_from_token_some() {
-        assert_eq!(Unexpected::from(&Token::Some), Unexpected::Option)
+    fn unexpected_from_canonical_token_some() {
+        assert_eq!(Unexpected::from(&CanonicalToken::Some), Unexpected::Option)
     }
 
     #[test]
-    fn unexpected_from_token_none() {
-        assert_eq!(Unexpected::from(&Token::None), Unexpected::Option)
+    fn unexpected_from_canonical_token_none() {
+        assert_eq!(Unexpected::from(&CanonicalToken::None), Unexpected::Option)
     }
 
     #[test]
-    fn unexpected_from_token_unit() {
-        assert_eq!(Unexpected::from(&Token::Unit), Unexpected::Unit)
+    fn unexpected_from_canonical_token_unit() {
+        assert_eq!(Unexpected::from(&CanonicalToken::Unit), Unexpected::Unit)
     }
 
     #[test]
-    fn unexpected_from_token_unit_struct() {
+    fn unexpected_from_canonical_token_unit_struct() {
         assert_eq!(
-            Unexpected::from(&Token::UnitStruct { name: "foo" }),
+            Unexpected::from(&CanonicalToken::UnitStruct { name: "foo" }),
             Unexpected::Unit
         )
     }
 
     #[test]
-    fn unexpected_from_token_unit_variant() {
+    fn unexpected_from_canonical_token_unit_variant() {
         assert_eq!(
-            Unexpected::from(&Token::UnitVariant {
+            Unexpected::from(&CanonicalToken::UnitVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2849,17 +2841,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_newtype_struct() {
+    fn unexpected_from_canonical_token_newtype_struct() {
         assert_eq!(
-            Unexpected::from(&Token::NewtypeStruct { name: "foo" }),
+            Unexpected::from(&CanonicalToken::NewtypeStruct { name: "foo" }),
             Unexpected::NewtypeStruct
         )
     }
 
     #[test]
-    fn unexpected_from_token_newtype_variant() {
+    fn unexpected_from_canonical_token_newtype_variant() {
         assert_eq!(
-            Unexpected::from(&Token::NewtypeVariant {
+            Unexpected::from(&CanonicalToken::NewtypeVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2869,35 +2861,41 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_seq() {
-        assert_eq!(Unexpected::from(&Token::Seq { len: None }), Unexpected::Seq)
-    }
-
-    #[test]
-    fn unexpected_from_token_tuple() {
-        assert_eq!(Unexpected::from(&Token::Tuple { len: 0 }), Unexpected::Seq)
-    }
-
-    #[test]
-    fn unexpected_from_token_seq_end() {
+    fn unexpected_from_canonical_token_seq() {
         assert_eq!(
-            Unexpected::from(&Token::SeqEnd),
+            Unexpected::from(&CanonicalToken::Seq { len: None }),
+            Unexpected::Seq
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_tuple() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Tuple { len: 0 }),
+            Unexpected::Seq
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_seq_end() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::SeqEnd),
             Unexpected::Other("SeqEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_end() {
+    fn unexpected_from_canonical_token_tuple_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleEnd),
+            Unexpected::from(&CanonicalToken::TupleEnd),
             Unexpected::Other("TupleEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_struct() {
+    fn unexpected_from_canonical_token_tuple_struct() {
         assert_eq!(
-            Unexpected::from(&Token::TupleStruct {
+            Unexpected::from(&CanonicalToken::TupleStruct {
                 name: "foo",
                 len: 0
             }),
@@ -2906,17 +2904,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_tuple_struct_end() {
+    fn unexpected_from_canonical_token_tuple_struct_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleStructEnd),
+            Unexpected::from(&CanonicalToken::TupleStructEnd),
             Unexpected::Other("TupleStructEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_variant() {
+    fn unexpected_from_canonical_token_tuple_variant() {
         assert_eq!(
-            Unexpected::from(&Token::TupleVariant {
+            Unexpected::from(&CanonicalToken::TupleVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2927,46 +2925,49 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_tuple_variant_end() {
+    fn unexpected_from_canonical_token_tuple_variant_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleVariantEnd),
+            Unexpected::from(&CanonicalToken::TupleVariantEnd),
             Unexpected::Other("TupleVariantEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_map() {
-        assert_eq!(Unexpected::from(&Token::Map { len: None }), Unexpected::Map)
+    fn unexpected_from_canonical_token_map() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Map { len: None }),
+            Unexpected::Map
+        )
     }
 
     #[test]
-    fn unexpected_from_token_map_end() {
+    fn unexpected_from_canonical_token_map_end() {
         assert_eq!(
-            Unexpected::from(&Token::MapEnd),
+            Unexpected::from(&CanonicalToken::MapEnd),
             Unexpected::Other("MapEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_field() {
+    fn unexpected_from_canonical_token_field() {
         assert_eq!(
-            Unexpected::from(&Token::Field("foo")),
+            Unexpected::from(&CanonicalToken::Field("foo")),
             Unexpected::Other("Field")
         )
     }
 
     #[test]
-    fn unexpected_from_token_skipped_field() {
+    fn unexpected_from_canonical_token_skipped_field() {
         assert_eq!(
-            Unexpected::from(&Token::SkippedField("foo")),
+            Unexpected::from(&CanonicalToken::SkippedField("foo")),
             Unexpected::Other("SkippedField")
         )
     }
 
     #[test]
-    fn unexpected_from_token_struct() {
+    fn unexpected_from_canonical_token_struct() {
         assert_eq!(
-            Unexpected::from(&Token::Struct {
+            Unexpected::from(&CanonicalToken::Struct {
                 name: "foo",
                 len: 0
             }),
@@ -2975,17 +2976,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_struct_end() {
+    fn unexpected_from_canonical_token_struct_end() {
         assert_eq!(
-            Unexpected::from(&Token::StructEnd),
+            Unexpected::from(&CanonicalToken::StructEnd),
             Unexpected::Other("StructEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_struct_variant() {
+    fn unexpected_from_canonical_token_struct_variant() {
         assert_eq!(
-            Unexpected::from(&Token::StructVariant {
+            Unexpected::from(&CanonicalToken::StructVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2996,18 +2997,10 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_struct_variant_end() {
+    fn unexpected_from_canonical_token_struct_variant_end() {
         assert_eq!(
-            Unexpected::from(&Token::StructVariantEnd),
+            Unexpected::from(&CanonicalToken::StructVariantEnd),
             Unexpected::Other("StructVariantEnd")
-        )
-    }
-
-    #[test]
-    fn unexpected_from_token_unordered() {
-        assert_eq!(
-            Unexpected::from(&Token::Unordered(&[])),
-            Unexpected::Other("unordered tokens")
         )
     }
 

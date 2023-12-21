@@ -1479,7 +1479,10 @@ mod tests {
         EnumDeserializer,
         Error,
     };
-    use crate::Token;
+    use crate::{
+        token::CanonicalToken,
+        Token,
+    };
     use alloc::{
         borrow::ToOwned,
         fmt,
@@ -2271,7 +2274,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::SeqEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::SeqEnd).into(), &"struct Any"),
         );
     }
 
@@ -2283,7 +2286,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleEnd).into(), &"struct Any"),
         );
     }
 
@@ -2295,7 +2298,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleStructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleStructEnd).into(), &"struct Any"),
         );
     }
 
@@ -2307,7 +2310,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleVariantEnd).into(), &"struct Any"),
         );
     }
 
@@ -2319,7 +2322,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::MapEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::MapEnd).into(), &"struct Any"),
         );
     }
 
@@ -2331,7 +2334,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructEnd).into(), &"struct Any"),
         );
     }
 
@@ -2343,7 +2346,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructVariantEnd).into(), &"struct Any"),
         );
     }
 
@@ -2382,7 +2385,7 @@ mod tests {
 
         assert_err_eq!(
             bool::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::I8(42)).into(), &"a boolean")
+            Error::invalid_type((&CanonicalToken::I8(42)).into(), &"a boolean")
         );
     }
 
@@ -2399,7 +2402,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i8")
         );
     }
 
@@ -2416,7 +2419,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i16")
         );
     }
 
@@ -2433,7 +2436,7 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i32")
         );
     }
 
@@ -2450,7 +2453,7 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i64")
         );
     }
 
@@ -2467,7 +2470,7 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i128")
         );
     }
 
@@ -2484,7 +2487,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u8")
         );
     }
 
@@ -2501,7 +2504,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u16")
         );
     }
 
@@ -2518,7 +2521,7 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u32")
         );
     }
 
@@ -2535,7 +2538,7 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u64")
         );
     }
 
@@ -2552,7 +2555,7 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u128")
         );
     }
 
@@ -2569,7 +2572,7 @@ mod tests {
 
         assert_err_eq!(
             f32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f32")
         );
     }
 
@@ -2586,7 +2589,7 @@ mod tests {
 
         assert_err_eq!(
             f64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f64")
         );
     }
 
@@ -2603,7 +2606,7 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a character")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a character")
         );
     }
 
@@ -2658,7 +2661,7 @@ mod tests {
 
         assert_err_eq!(
             Str::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"str")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"str")
         );
     }
 
@@ -2709,7 +2712,10 @@ mod tests {
 
         assert_err_eq!(
             BorrowedStr::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Str("foo".to_owned())).into(), &"a borrowed str")
+            Error::invalid_type(
+                (&CanonicalToken::Str("foo".to_owned())).into(),
+                &"a borrowed str"
+            )
         );
     }
 
@@ -2726,7 +2732,7 @@ mod tests {
 
         assert_err_eq!(
             String::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a string")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a string")
         );
     }
 
@@ -2787,7 +2793,7 @@ mod tests {
 
         assert_err_eq!(
             Bytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"bytes")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"bytes")
         );
     }
 
@@ -2838,7 +2844,10 @@ mod tests {
 
         assert_err_eq!(
             BorrowedBytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bytes(b"foo".to_vec())).into(), &"borrowed bytes")
+            Error::invalid_type(
+                (&CanonicalToken::Bytes(b"foo".to_vec())).into(),
+                &"borrowed bytes"
+            )
         );
     }
 
@@ -2858,7 +2867,7 @@ mod tests {
 
         assert_err_eq!(
             ByteBuf::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"byte array")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"byte array")
         );
     }
 
@@ -2882,7 +2891,7 @@ mod tests {
 
         assert_err_eq!(
             Option::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"option")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"option")
         );
     }
 
@@ -2899,7 +2908,7 @@ mod tests {
 
         assert_err_eq!(
             <()>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit")
         );
     }
 
@@ -2947,7 +2956,7 @@ mod tests {
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitStruct { name: "Not Unit" }).into(),
+                (&CanonicalToken::UnitStruct { name: "Not Unit" }).into(),
                 &"unit struct"
             )
         );
@@ -2959,7 +2968,7 @@ mod tests {
 
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit struct")
         );
     }
 
@@ -3014,7 +3023,7 @@ mod tests {
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeStruct {
+                (&CanonicalToken::NewtypeStruct {
                     name: "Not Newtype"
                 })
                     .into(),
@@ -3029,7 +3038,7 @@ mod tests {
 
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"newtype struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"newtype struct")
         );
     }
 
@@ -3053,7 +3062,7 @@ mod tests {
 
         assert_err_eq!(
             Vec::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a sequence")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a sequence")
         );
     }
 
@@ -3139,7 +3148,7 @@ mod tests {
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a tuple of size 3")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a tuple of size 3")
         );
     }
 
@@ -3234,7 +3243,7 @@ mod tests {
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleStruct {
+                (&CanonicalToken::TupleStruct {
                     name: "Not TupleStruct",
                     len: 3
                 })
@@ -3270,7 +3279,7 @@ mod tests {
 
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"TupleStruct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"TupleStruct")
         );
     }
 
@@ -3303,7 +3312,7 @@ mod tests {
 
         assert_err_eq!(
             HashMap::<char, u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a map")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a map")
         );
     }
 
@@ -3355,7 +3364,7 @@ mod tests {
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::Struct {
+                (&CanonicalToken::Struct {
                     name: "Not Struct",
                     len: 2
                 })
@@ -3371,7 +3380,7 @@ mod tests {
 
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"struct Struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"struct Struct")
         );
     }
 
@@ -3540,7 +3549,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitVariant {
+                (&CanonicalToken::UnitVariant {
                     name: "Not Enum",
                     variant_index: 0,
                     variant: "Unit",
@@ -3581,7 +3590,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeVariant {
+                (&CanonicalToken::NewtypeVariant {
                     name: "Not Enum",
                     variant_index: 1,
                     variant: "Newtype",
@@ -3630,7 +3639,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleVariant {
+                (&CanonicalToken::TupleVariant {
                     name: "Not Enum",
                     variant_index: 2,
                     variant: "Tuple",
@@ -3688,7 +3697,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::StructVariant {
+                (&CanonicalToken::StructVariant {
                     name: "Not Enum",
                     variant_index: 3,
                     variant: "Struct",
@@ -3706,7 +3715,7 @@ mod tests {
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"enum Enum"),
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"enum Enum"),
         );
     }
 
@@ -3765,7 +3774,7 @@ mod tests {
 
         assert_err_eq!(
             Identifier::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(false)).into(), &"identifier")
+            Error::invalid_type((&CanonicalToken::Bool(false)).into(), &"identifier")
         );
     }
 
@@ -5384,7 +5393,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_type((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid type: expected foo, found boolean `true`"
         );
@@ -5395,7 +5404,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_value((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_value((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid value: expected foo, found boolean `true`"
         );

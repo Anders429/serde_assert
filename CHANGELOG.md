@@ -12,6 +12,8 @@
 - The internals of `Tokens` are no longer public. `Tokens` can no longer be constructed by user code, and is now only returned by the `Serializer`.
 - Comparison with a `Tokens` can now be done with any type that implements `IntoIterator<Item = &Token>`.
 - `de::Builder::build()` now only requires `&self` instead of `&mut self`.
+### Removed
+- `From<Token>` implementation for `serde::de::Unexpected`.
 
 ## 0.6.0 - 2023-11-19
 ### Changed
