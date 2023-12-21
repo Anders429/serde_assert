@@ -834,9 +834,6 @@ pub enum Token {
     /// equality of [`Tokens`]. In other words, the outer slice is unordered, while the inner
     /// slices are all ordered.
     ///
-    /// Note that comparing equality of nested `Unordered` tokens is not currently supported, and
-    /// may give bogus results.
-    ///
     /// # Example
     /// ``` rust
     /// use claims::assert_ok_eq;
@@ -2699,6 +2696,28 @@ mod tests {
         assert_ne!(
             Tokens(vec![CanonicalToken::Bool(true)]),
             [Token::Unordered(&[&[Token::Bool(false)]])],
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_nested() {
+        assert_eq!(
+            Tokens(vec![
+                CanonicalToken::Unit,
+                CanonicalToken::U8(4),
+                CanonicalToken::U8(3),
+                CanonicalToken::U8(1),
+                CanonicalToken::U8(2),
+                CanonicalToken::Bool(true)
+            ]),
+            [Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::Unordered(&[
+                    &[Token::U8(1), Token::U8(2)],
+                    &[Token::U8(3)],
+                ])],
+                &[Token::Unit, Token::U8(4)],
+            ])]
         );
     }
 

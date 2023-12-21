@@ -5,6 +5,7 @@
 - `Tokens` now implements `IntoIterator<Item = Token>`.
 - `&Tokens` now implements `IntoIterator<Item = &Token>`.
 - The `token` module is now public, containing both `Token` (which is also exposed in the root module) and `Tokens`.
+- Comparison with nested `Token::Unordered`s is now allowed and correctly handled.
 ### Changed
 - `Deserializer::build()` now takes the tokens as a parameter. These tokens can now be any type that implements `IntoIterator<Item = Token>`.
 - `Tokens` is no longer exposed in the root module, instead being available at `token::Tokens`.
