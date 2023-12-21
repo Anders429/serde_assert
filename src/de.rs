@@ -20,12 +20,19 @@
 
 use crate::{
     token,
-    token::Tokens,
+    token::{
+        CanonicalToken,
+        Tokens,
+        UnorderedTokens,
+    },
     Token,
 };
-use alloc::string::{
-    String,
-    ToString,
+use alloc::{
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
 };
 use core::{
     fmt,
@@ -81,9 +88,9 @@ use serde::{
 /// [`zero_copy()`]: Builder::zero_copy()
 #[derive(Debug)]
 pub struct Deserializer<'a> {
-    tokens: token::Iter<'a>,
+    tokens: token::OwningIter<'a>,
 
-    revisited_token: Option<&'a Token>,
+    revisited_token: Option<&'a CanonicalToken>,
 
     is_human_readable: bool,
     self_describing: bool,
@@ -102,95 +109,95 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
         let token = self.next_token()?;
         match token {
-            Token::Bool(v) => visitor.visit_bool(*v),
-            Token::I8(v) => visitor.visit_i8(*v),
-            Token::I16(v) => visitor.visit_i16(*v),
-            Token::I32(v) => visitor.visit_i32(*v),
-            Token::I64(v) => visitor.visit_i64(*v),
-            Token::I128(v) => visitor.visit_i128(*v),
-            Token::U8(v) => visitor.visit_u8(*v),
-            Token::U16(v) => visitor.visit_u16(*v),
-            Token::U32(v) => visitor.visit_u32(*v),
-            Token::U64(v) => visitor.visit_u64(*v),
-            Token::U128(v) => visitor.visit_u128(*v),
-            Token::F32(v) => visitor.visit_f32(*v),
-            Token::F64(v) => visitor.visit_f64(*v),
-            Token::Char(v) => visitor.visit_char(*v),
-            Token::Str(v) => visitor.visit_string(v.clone()),
-            Token::Bytes(v) => visitor.visit_byte_buf(v.clone()),
-            Token::None => visitor.visit_none(),
-            Token::Some => visitor.visit_some(self),
-            Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
-            Token::UnitVariant { .. }
-            | Token::NewtypeVariant { .. }
-            | Token::TupleVariant { .. }
-            | Token::StructVariant { .. } => {
+            CanonicalToken::Bool(v) => visitor.visit_bool(*v),
+            CanonicalToken::I8(v) => visitor.visit_i8(*v),
+            CanonicalToken::I16(v) => visitor.visit_i16(*v),
+            CanonicalToken::I32(v) => visitor.visit_i32(*v),
+            CanonicalToken::I64(v) => visitor.visit_i64(*v),
+            CanonicalToken::I128(v) => visitor.visit_i128(*v),
+            CanonicalToken::U8(v) => visitor.visit_u8(*v),
+            CanonicalToken::U16(v) => visitor.visit_u16(*v),
+            CanonicalToken::U32(v) => visitor.visit_u32(*v),
+            CanonicalToken::U64(v) => visitor.visit_u64(*v),
+            CanonicalToken::U128(v) => visitor.visit_u128(*v),
+            CanonicalToken::F32(v) => visitor.visit_f32(*v),
+            CanonicalToken::F64(v) => visitor.visit_f64(*v),
+            CanonicalToken::Char(v) => visitor.visit_char(*v),
+            CanonicalToken::Str(v) => visitor.visit_string(v.clone()),
+            CanonicalToken::Bytes(v) => visitor.visit_byte_buf(v.clone()),
+            CanonicalToken::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::Unit | CanonicalToken::UnitStruct { .. } => visitor.visit_unit(),
+            CanonicalToken::UnitVariant { .. }
+            | CanonicalToken::NewtypeVariant { .. }
+            | CanonicalToken::TupleVariant { .. }
+            | CanonicalToken::StructVariant { .. } => {
                 // `EnumDeserializer` takes care of the enum deserialization, which will consume
                 // this token later.
                 self.revisit_token(token);
                 visitor.visit_enum(EnumAccess { deserializer: self })
             }
-            Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
-            Token::Seq { len } => {
+            CanonicalToken::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: CanonicalToken::SeqEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Tuple { len } => {
+            CanonicalToken::Tuple { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: CanonicalToken::TupleEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::TupleStruct { name: _, len } => {
+            CanonicalToken::TupleStruct { name: _, len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: CanonicalToken::TupleStructEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Map { len } => {
+            CanonicalToken::Map { len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::MapEnd,
+                    end_token: CanonicalToken::MapEnd,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Field(v) => visitor.visit_str(v),
-            Token::Struct { name: _, len } => {
+            CanonicalToken::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Struct { name: _, len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::StructEnd,
+                    end_token: CanonicalToken::StructEnd,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
@@ -206,7 +213,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bool(v) = token {
+        if let CanonicalToken::Bool(v) = token {
             visitor.visit_bool(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -218,7 +225,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I8(v) = token {
+        if let CanonicalToken::I8(v) = token {
             visitor.visit_i8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -230,7 +237,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I16(v) = token {
+        if let CanonicalToken::I16(v) = token {
             visitor.visit_i16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -242,7 +249,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I32(v) = token {
+        if let CanonicalToken::I32(v) = token {
             visitor.visit_i32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -254,7 +261,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I64(v) = token {
+        if let CanonicalToken::I64(v) = token {
             visitor.visit_i64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -266,7 +273,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I128(v) = token {
+        if let CanonicalToken::I128(v) = token {
             visitor.visit_i128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -278,7 +285,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U8(v) = token {
+        if let CanonicalToken::U8(v) = token {
             visitor.visit_u8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -290,7 +297,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U16(v) = token {
+        if let CanonicalToken::U16(v) = token {
             visitor.visit_u16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -302,7 +309,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U32(v) = token {
+        if let CanonicalToken::U32(v) = token {
             visitor.visit_u32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -314,7 +321,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U64(v) = token {
+        if let CanonicalToken::U64(v) = token {
             visitor.visit_u64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -326,7 +333,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U128(v) = token {
+        if let CanonicalToken::U128(v) = token {
             visitor.visit_u128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -338,7 +345,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F32(v) = token {
+        if let CanonicalToken::F32(v) = token {
             visitor.visit_f32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -350,7 +357,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F64(v) = token {
+        if let CanonicalToken::F64(v) = token {
             visitor.visit_f64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -362,7 +369,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Char(v) = token {
+        if let CanonicalToken::Char(v) = token {
             visitor.visit_char(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -374,7 +381,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_str(v)
             } else {
@@ -390,7 +397,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             visitor.visit_string(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -402,7 +409,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_bytes(v)
             } else {
@@ -418,7 +425,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             visitor.visit_byte_buf(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -430,8 +437,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         match self.next_token()? {
-            Token::Some => visitor.visit_some(self),
-            Token::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::None => visitor.visit_none(),
             token => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -441,7 +448,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Unit = token {
+        if let CanonicalToken::Unit = token {
             visitor.visit_unit()
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -457,7 +464,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::UnitStruct { name: struct_name } = token {
+        if let CanonicalToken::UnitStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_unit()
             } else {
@@ -477,7 +484,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::NewtypeStruct { name: struct_name } = token {
+        if let CanonicalToken::NewtypeStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_newtype_struct(self)
             } else {
@@ -493,13 +500,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Seq { len } = token {
+        if let CanonicalToken::Seq { len } = token {
             let mut access = SeqAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::SeqEnd,
+                end_token: CanonicalToken::SeqEnd,
                 ended: false,
             };
             let result = visitor.visit_seq(&mut access)?;
@@ -515,14 +522,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Tuple { len: token_len } = token {
+        if let CanonicalToken::Tuple { len: token_len } = token {
             if len == *token_len {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: CanonicalToken::TupleEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -546,7 +553,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::TupleStruct {
+        if let CanonicalToken::TupleStruct {
             name: token_name,
             len: token_len,
         } = token
@@ -561,7 +568,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: CanonicalToken::TupleStructEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -578,13 +585,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Map { len } = token {
+        if let CanonicalToken::Map { len } = token {
             let mut access = MapAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::MapEnd,
+                end_token: CanonicalToken::MapEnd,
                 ended: false,
             };
             let result = visitor.visit_map(&mut access)?;
@@ -607,7 +614,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let token = self.next_token()?;
 
         match token {
-            Token::Struct {
+            CanonicalToken::Struct {
                 name: token_name,
                 len,
             } => {
@@ -617,7 +624,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                         len: Some(*len),
 
-                        end_token: Token::StructEnd,
+                        end_token: CanonicalToken::StructEnd,
                         ended: false,
                     };
                     let result = visitor.visit_map(&mut access)?;
@@ -627,13 +634,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     Err(Self::Error::invalid_value((token).into(), &visitor))
                 }
             }
-            Token::Seq { len } => {
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: CanonicalToken::SeqEnd,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -655,16 +662,16 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::UnitVariant {
+            CanonicalToken::UnitVariant {
                 name: token_name, ..
             }
-            | Token::NewtypeVariant {
+            | CanonicalToken::NewtypeVariant {
                 name: token_name, ..
             }
-            | Token::TupleVariant {
+            | CanonicalToken::TupleVariant {
                 name: token_name, ..
             }
-            | Token::StructVariant {
+            | CanonicalToken::StructVariant {
                 name: token_name, ..
             } => {
                 if name == *token_name {
@@ -686,8 +693,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::Str(v) => visitor.visit_str(v),
-            Token::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -713,7 +720,7 @@ impl<'a> Deserializer<'a> {
         Builder::new(tokens)
     }
 
-    fn next_token(&mut self) -> Result<&'a Token, Error> {
+    fn next_token(&mut self) -> Result<&'a CanonicalToken, Error> {
         loop {
             let token = self
                 .revisited_token
@@ -722,13 +729,13 @@ impl<'a> Deserializer<'a> {
                 .chain(&mut self.tokens)
                 .next()
                 .ok_or(Error::EndOfTokens)?;
-            if !matches!(token, Token::SkippedField(_)) {
+            if !matches!(token, CanonicalToken::SkippedField(_)) {
                 return Ok(token);
             }
         }
     }
 
-    fn revisit_token(&mut self, token: &'a Token) {
+    fn revisit_token(&mut self, token: &'a CanonicalToken) {
         self.revisited_token = Some(token);
     }
 }
@@ -738,7 +745,7 @@ struct SeqAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: CanonicalToken,
     ended: bool,
 }
 
@@ -769,7 +776,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
 impl SeqAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::ExpectedToken(self.end_token.clone().into()));
         }
         self.ended = true;
         Ok(())
@@ -781,7 +788,7 @@ struct MapAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: CanonicalToken,
     ended: bool,
 }
 
@@ -819,7 +826,7 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
 impl MapAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::ExpectedToken(self.end_token.clone().into()));
         }
         self.ended = true;
         Ok(())
@@ -877,7 +884,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: Some(len),
 
-            end_token: Token::TupleVariantEnd,
+            end_token: CanonicalToken::TupleVariantEnd,
             ended: false,
         })
     }
@@ -895,7 +902,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: None,
 
-            end_token: Token::StructVariantEnd,
+            end_token: CanonicalToken::StructVariantEnd,
             ended: false,
         })
     }
@@ -917,10 +924,10 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant, .. }
-            | Token::TupleVariant { variant, .. }
-            | Token::NewtypeVariant { variant, .. }
-            | Token::StructVariant { variant, .. } => visitor.visit_str(variant),
+            CanonicalToken::UnitVariant { variant, .. }
+            | CanonicalToken::TupleVariant { variant, .. }
+            | CanonicalToken::NewtypeVariant { variant, .. }
+            | CanonicalToken::StructVariant { variant, .. } => visitor.visit_str(variant),
             _ => unreachable!(),
         }
     }
@@ -986,10 +993,12 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant_index, .. }
-            | Token::TupleVariant { variant_index, .. }
-            | Token::NewtypeVariant { variant_index, .. }
-            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(*variant_index),
+            CanonicalToken::UnitVariant { variant_index, .. }
+            | CanonicalToken::TupleVariant { variant_index, .. }
+            | CanonicalToken::NewtypeVariant { variant_index, .. }
+            | CanonicalToken::StructVariant { variant_index, .. } => {
+                visitor.visit_u32(*variant_index)
+            }
             _ => unreachable!(),
         }
     }
@@ -1204,8 +1213,29 @@ impl Builder {
     where
         T: IntoIterator<Item = Token>,
     {
+        fn collect_canonical<I>(tokens: &mut Vec<CanonicalToken>, iter: I)
+        where
+            I: Iterator<Item = Token>,
+        {
+            for token in iter {
+                match token.try_into() {
+                    Ok(canonical_token) => tokens.push(canonical_token),
+                    Err(UnorderedTokens(unordered_tokens)) => {
+                        collect_canonical(
+                            tokens,
+                            unordered_tokens.iter().copied().flatten().cloned(),
+                        );
+                    }
+                }
+            }
+        }
+
         Self {
-            tokens: Tokens(tokens.into_iter().collect()),
+            tokens: {
+                let mut canonical_tokens = Vec::new();
+                collect_canonical(&mut canonical_tokens, tokens.into_iter());
+                Tokens(canonical_tokens)
+            },
 
             is_human_readable: true,
             self_describing: false,
@@ -1305,7 +1335,7 @@ impl Builder {
     #[must_use]
     pub fn build<'a>(&self) -> Deserializer<'a> {
         Deserializer {
-            tokens: token::Iter::new(self.tokens.clone()),
+            tokens: token::OwningIter::new(self.tokens.clone()),
 
             revisited_token: None,
 
