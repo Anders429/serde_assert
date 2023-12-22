@@ -91,11 +91,15 @@ use serde::{
 #[derive(Clone, Copy, Debug)]
 pub enum SerializeStructAs {
     /// Serialize structs using [`Token::Struct`].
+    ///
+    /// [`Token::Struct`]: crate::Token::Struct
     Struct,
     /// Serialize structs using [`Token::Seq`].
     ///
     /// This type of serialization is often done by compact serialization formats. Using this
     /// setting simulates those serializers.
+    ///
+    /// [`Token::Seq`]: crate::Token::Seq
     Seq,
 }
 
@@ -133,6 +137,7 @@ pub enum SerializeStructAs {
 /// [`is_human_readable()`]: Builder::is_human_readable()
 /// [`serialize_struct_as()`]: Builder::serialize_struct_as()
 /// [`Serialize`]: serde::Serialize
+/// [`Token`]: crate::Token
 #[derive(Debug)]
 pub struct Serializer {
     is_human_readable: bool,

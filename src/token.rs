@@ -864,7 +864,7 @@ pub enum Token {
     /// );
     /// ```
     ///
-    /// [`HashSet`]: hashbrown::HashSet
+    /// [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
     /// [`Serializer`]: crate::Serializer
     Unordered(&'static [&'static [Token]]),
 }

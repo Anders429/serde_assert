@@ -102,7 +102,7 @@
 //!
 //! [`claims`]: https://docs.rs/claims/
 //! [`Deserialize`]: serde::Deserialize
-//! [`HashSet`]: hashbrown::HashSet
+//! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
 //! [`Serialize`]: serde::Serialize
 //! [`Serialize::serialize()`]: serde::Serialize::serialize()
 
