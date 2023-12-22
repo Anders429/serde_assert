@@ -144,7 +144,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: *len,
 
-                    end_token: CanonicalToken::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -157,7 +157,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(*len),
 
-                    end_token: CanonicalToken::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -170,7 +170,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(*len),
 
-                    end_token: CanonicalToken::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -183,7 +183,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: *len,
 
-                    end_token: CanonicalToken::MapEnd,
+                    end_token: EndToken::Map,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
@@ -197,7 +197,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(*len),
 
-                    end_token: CanonicalToken::StructEnd,
+                    end_token: EndToken::Struct,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
@@ -506,7 +506,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                 len: *len,
 
-                end_token: CanonicalToken::SeqEnd,
+                end_token: EndToken::Seq,
                 ended: false,
             };
             let result = visitor.visit_seq(&mut access)?;
@@ -529,7 +529,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(len),
 
-                    end_token: CanonicalToken::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -568,7 +568,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(len),
 
-                    end_token: CanonicalToken::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -591,7 +591,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                 len: *len,
 
-                end_token: CanonicalToken::MapEnd,
+                end_token: EndToken::Map,
                 ended: false,
             };
             let result = visitor.visit_map(&mut access)?;
@@ -624,7 +624,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                         len: Some(*len),
 
-                        end_token: CanonicalToken::StructEnd,
+                        end_token: EndToken::Struct,
                         ended: false,
                     };
                     let result = visitor.visit_map(&mut access)?;
@@ -640,7 +640,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: *len,
 
-                    end_token: CanonicalToken::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -740,12 +740,38 @@ impl<'a> Deserializer<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+enum EndToken {
+    Seq,
+    Tuple,
+    TupleStruct,
+    TupleVariant,
+    Map,
+    Struct,
+    StructVariant,
+}
+
+impl PartialEq<EndToken> for CanonicalToken {
+    fn eq(&self, other: &EndToken) -> bool {
+        matches!(
+            (self, other),
+            (Self::SeqEnd, EndToken::Seq)
+                | (Self::TupleEnd, EndToken::Tuple)
+                | (Self::TupleStructEnd, EndToken::TupleStruct)
+                | (Self::TupleVariantEnd, EndToken::TupleVariant)
+                | (Self::MapEnd, EndToken::Map)
+                | (Self::StructEnd, EndToken::Struct)
+                | (Self::StructVariantEnd, EndToken::StructVariant)
+        )
+    }
+}
+
 struct SeqAccess<'a, 'b> {
     deserializer: &'a mut Deserializer<'b>,
 
     len: Option<usize>,
 
-    end_token: CanonicalToken,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -776,7 +802,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
 impl SeqAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone().into()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -788,7 +814,7 @@ struct MapAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: CanonicalToken,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -826,7 +852,7 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
 impl MapAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone().into()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -884,7 +910,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: Some(len),
 
-            end_token: CanonicalToken::TupleVariantEnd,
+            end_token: EndToken::TupleVariant,
             ended: false,
         })
     }
@@ -902,7 +928,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: None,
 
-            end_token: CanonicalToken::StructVariantEnd,
+            end_token: EndToken::StructVariant,
             ended: false,
         })
     }
@@ -1364,8 +1390,21 @@ pub enum Error {
     /// completed.
     EndOfTokens,
 
-    /// Expected the given token, but encountered a different token instead.
-    ExpectedToken(Token),
+    /// Expected a `Token::SeqEnd`.
+    ExpectedSeqEnd,
+    /// Expected a `Token::TupleEnd`.
+    ExpectedTupleEnd,
+    /// Expected a `Token::TupleStructEnd`.
+    ExpectedTupleStructEnd,
+    /// Expected a `Token::TupleVariantEnd`.
+    ExpectedTupleVariantEnd,
+    /// Expected a `Token::MapEnd`.
+    ExpectedMapEnd,
+    /// Expected a `Token::StructEnd`.
+    ExpectedStructEnd,
+    /// Expected a `Token::StructVariantEnd`.
+    ExpectedStructVariantEnd,
+
     /// An unsupported [`serde::Deserializer`] method was called during deserialization of an
     /// `enum` variant.
     ///
@@ -1414,11 +1453,31 @@ pub enum Error {
     DuplicateField(&'static str),
 }
 
+impl Error {
+    fn expected_end_token(end_token: EndToken) -> Self {
+        match end_token {
+            EndToken::Seq => Self::ExpectedSeqEnd,
+            EndToken::Tuple => Self::ExpectedTupleEnd,
+            EndToken::TupleStruct => Self::ExpectedTupleStructEnd,
+            EndToken::TupleVariant => Self::ExpectedTupleVariantEnd,
+            EndToken::Map => Self::ExpectedMapEnd,
+            EndToken::Struct => Self::ExpectedStructEnd,
+            EndToken::StructVariant => Self::ExpectedStructVariantEnd,
+        }
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
-            Self::ExpectedToken(token) => write!(f, "expected token {token}"),
+            Self::ExpectedSeqEnd => f.write_str("expected token SeqEnd"),
+            Self::ExpectedTupleEnd => f.write_str("expected token TupleEnd"),
+            Self::ExpectedTupleStructEnd => f.write_str("expected token TupleStructEnd"),
+            Self::ExpectedTupleVariantEnd => f.write_str("expected token TupleVariantEnd"),
+            Self::ExpectedMapEnd => f.write_str("expected token MapEnd"),
+            Self::ExpectedStructEnd => f.write_str("expected token StructEnd"),
+            Self::ExpectedStructVariantEnd => f.write_str("expected token StructVariantEnd"),
             Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
@@ -3166,7 +3225,7 @@ mod tests {
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::TupleEnd)
+            Error::ExpectedTupleEnd
         );
     }
 
@@ -3440,7 +3499,7 @@ mod tests {
 
         assert_err_eq!(
             EmptyStruct::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::StructEnd),
+            Error::ExpectedStructEnd,
         );
     }
 
@@ -5357,7 +5416,7 @@ mod tests {
     #[test]
     fn display_error_expected_seq_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::SeqEnd)),
+            format!("{}", Error::ExpectedSeqEnd),
             "expected token SeqEnd"
         );
     }
@@ -5365,8 +5424,48 @@ mod tests {
     #[test]
     fn display_error_expected_tuple_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::TupleEnd)),
+            format!("{}", Error::ExpectedTupleEnd),
             "expected token TupleEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleStructEnd),
+            "expected token TupleStructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleVariantEnd),
+            "expected token TupleVariantEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_map_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedMapEnd),
+            "expected token MapEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructEnd),
+            "expected token StructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructVariantEnd),
+            "expected token StructVariantEnd"
         );
     }
 
