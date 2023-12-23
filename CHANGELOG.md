@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2023-12-23
+### Added
+- `Tokens` now implements `IntoIterator<Item = Token>`.
+- `&Tokens` now implements `IntoIterator<Item = &Token>`.
+- The `token` module is now public, containing both `Token` (which is also exposed in the root module) and `Tokens`.
+- Comparison with nested `Token::Unordered`s is now allowed and correctly handled.
+### Changed
+- `Deserializer::build()` now takes the tokens as a parameter. These tokens can now be any type that implements `IntoIterator<Item = Token>`.
+- `Tokens` is no longer exposed in the root module, instead being available at `token::Tokens`.
+- The internals of `Tokens` are no longer public. `Tokens` can no longer be constructed by user code, and is now only returned by the `Serializer`.
+- Comparison with a `Tokens` can now be done with any type that implements `IntoIterator<Item = &Token>`.
+- `de::Builder::build()` now only requires `&self` instead of `&mut self`.
+- `Error::ExpectedToken` variant has been replaced by `Error::ExpectedSeqEnd`, `Error::ExpectedTupleEnd`, ``Error::ExpectedTupleStructEnd`, `Error::ExpectedTupleVariantEnd`, `Error::ExpectedMapEnd`, `Error::ExpectedStructEnd`, and `Error::ExpectedStructVariantEnd` variants.
+### Removed
+- `From<Token>` implementation for `serde::de::Unexpected`.
+- `PartialEq` implementation for `Token`.
+- `Display` implementation for `Token`.
+- Dependency on `hashbrown` crate.
 
 ## 0.6.0 - 2023-11-19
 ### Changed

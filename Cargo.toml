@@ -1,6 +1,6 @@
 [package]
 name = "serde_assert"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Anders Evensen"]
 edition = "2021"
 rust-version = "1.63.0"
@@ -12,7 +12,6 @@ categories = ["development-tools::testing", "encoding", "no-std"]
 keywords = ["serde", "testing", "serialization", "deserialization", "test"]
 
 [dependencies]
-hashbrown = {version = "0.14.2", default-features = false, features = ["ahash"]}
 serde = {version = "1.0.152", default-features = false, features = ["alloc"]}
 
 [build-dependencies]

@@ -11,24 +11,28 @@
 //! use serde_assert::{
 //!     Deserializer,
 //!     Token,
-//!     Tokens,
 //! };
 //!
-//! let mut deserializer = Deserializer::builder()
-//!     .tokens(Tokens(vec![Token::Bool(true)]))
-//!     .build();
+//! let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 //!
 //! assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 //! ```
 
 use crate::{
     token,
+    token::{
+        CanonicalToken,
+        Tokens,
+        UnorderedTokens,
+    },
     Token,
-    Tokens,
 };
-use alloc::string::{
-    String,
-    ToString,
+use alloc::{
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
 };
 use core::{
     fmt,
@@ -46,9 +50,9 @@ use serde::{
 
 /// Deserializer for testing [`Deserialize`] implementations.
 ///
-/// A deserializer is constructed using [`Tokens`] representing the serialized value to be
-/// deserialized. The value that is output can be compared against an expected value to ensure
-/// deserialization works correctly.
+/// A deserializer is constructed from a sequence of [`Token`]s representing the serialized value
+/// to be deserialized. The value that is output can be compared against an expected value to
+/// ensure deserialization works correctly.
 ///
 /// # Configuration
 /// The following options can be configured on the [`Builder`]:
@@ -70,12 +74,9 @@ use serde::{
 /// use serde_assert::{
 ///     Deserializer,
 ///     Token,
-///     Tokens,
 /// };
 ///
-/// let mut deserializer = Deserializer::builder()
-///     .tokens(Tokens(vec![Token::Bool(true)]))
-///     .build();
+/// let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 ///
 /// assert_ok_eq!(bool::deserialize(&mut deserializer), true);
 /// ```
@@ -87,9 +88,9 @@ use serde::{
 /// [`zero_copy()`]: Builder::zero_copy()
 #[derive(Debug)]
 pub struct Deserializer<'a> {
-    tokens: token::Iter<'a>,
+    tokens: token::OwningIter<'a>,
 
-    revisited_token: Option<&'a Token>,
+    revisited_token: Option<&'a CanonicalToken>,
 
     is_human_readable: bool,
     self_describing: bool,
@@ -108,97 +109,95 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
         let token = self.next_token()?;
         match token {
-            Token::Bool(v) => visitor.visit_bool(*v),
-            Token::I8(v) => visitor.visit_i8(*v),
-            Token::I16(v) => visitor.visit_i16(*v),
-            Token::I32(v) => visitor.visit_i32(*v),
-            Token::I64(v) => visitor.visit_i64(*v),
-            #[cfg(has_i128)]
-            Token::I128(v) => visitor.visit_i128(*v),
-            Token::U8(v) => visitor.visit_u8(*v),
-            Token::U16(v) => visitor.visit_u16(*v),
-            Token::U32(v) => visitor.visit_u32(*v),
-            Token::U64(v) => visitor.visit_u64(*v),
-            #[cfg(has_i128)]
-            Token::U128(v) => visitor.visit_u128(*v),
-            Token::F32(v) => visitor.visit_f32(*v),
-            Token::F64(v) => visitor.visit_f64(*v),
-            Token::Char(v) => visitor.visit_char(*v),
-            Token::Str(v) => visitor.visit_string(v.clone()),
-            Token::Bytes(v) => visitor.visit_byte_buf(v.clone()),
-            Token::None => visitor.visit_none(),
-            Token::Some => visitor.visit_some(self),
-            Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
-            Token::UnitVariant { .. }
-            | Token::NewtypeVariant { .. }
-            | Token::TupleVariant { .. }
-            | Token::StructVariant { .. } => {
+            CanonicalToken::Bool(v) => visitor.visit_bool(*v),
+            CanonicalToken::I8(v) => visitor.visit_i8(*v),
+            CanonicalToken::I16(v) => visitor.visit_i16(*v),
+            CanonicalToken::I32(v) => visitor.visit_i32(*v),
+            CanonicalToken::I64(v) => visitor.visit_i64(*v),
+            CanonicalToken::I128(v) => visitor.visit_i128(*v),
+            CanonicalToken::U8(v) => visitor.visit_u8(*v),
+            CanonicalToken::U16(v) => visitor.visit_u16(*v),
+            CanonicalToken::U32(v) => visitor.visit_u32(*v),
+            CanonicalToken::U64(v) => visitor.visit_u64(*v),
+            CanonicalToken::U128(v) => visitor.visit_u128(*v),
+            CanonicalToken::F32(v) => visitor.visit_f32(*v),
+            CanonicalToken::F64(v) => visitor.visit_f64(*v),
+            CanonicalToken::Char(v) => visitor.visit_char(*v),
+            CanonicalToken::Str(v) => visitor.visit_string(v.clone()),
+            CanonicalToken::Bytes(v) => visitor.visit_byte_buf(v.clone()),
+            CanonicalToken::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::Unit | CanonicalToken::UnitStruct { .. } => visitor.visit_unit(),
+            CanonicalToken::UnitVariant { .. }
+            | CanonicalToken::NewtypeVariant { .. }
+            | CanonicalToken::TupleVariant { .. }
+            | CanonicalToken::StructVariant { .. } => {
                 // `EnumDeserializer` takes care of the enum deserialization, which will consume
                 // this token later.
                 self.revisit_token(token);
                 visitor.visit_enum(EnumAccess { deserializer: self })
             }
-            Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
-            Token::Seq { len } => {
+            CanonicalToken::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Tuple { len } => {
+            CanonicalToken::Tuple { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::TupleStruct { name: _, len } => {
+            CanonicalToken::TupleStruct { name: _, len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Map { len } => {
+            CanonicalToken::Map { len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::MapEnd,
+                    end_token: EndToken::Map,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Field(v) => visitor.visit_str(v),
-            Token::Struct { name: _, len } => {
+            CanonicalToken::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Struct { name: _, len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::StructEnd,
+                    end_token: EndToken::Struct,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
@@ -214,7 +213,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bool(v) = token {
+        if let CanonicalToken::Bool(v) = token {
             visitor.visit_bool(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -226,7 +225,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I8(v) = token {
+        if let CanonicalToken::I8(v) = token {
             visitor.visit_i8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -238,7 +237,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I16(v) = token {
+        if let CanonicalToken::I16(v) = token {
             visitor.visit_i16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -250,7 +249,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I32(v) = token {
+        if let CanonicalToken::I32(v) = token {
             visitor.visit_i32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -262,20 +261,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I64(v) = token {
+        if let CanonicalToken::I64(v) = token {
             visitor.visit_i64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
-    #[cfg(has_i128)]
     fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I128(v) = token {
+        if let CanonicalToken::I128(v) = token {
             visitor.visit_i128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -287,7 +285,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U8(v) = token {
+        if let CanonicalToken::U8(v) = token {
             visitor.visit_u8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -299,7 +297,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U16(v) = token {
+        if let CanonicalToken::U16(v) = token {
             visitor.visit_u16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -311,7 +309,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U32(v) = token {
+        if let CanonicalToken::U32(v) = token {
             visitor.visit_u32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -323,20 +321,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U64(v) = token {
+        if let CanonicalToken::U64(v) = token {
             visitor.visit_u64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
         }
     }
 
-    #[cfg(has_i128)]
     fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U128(v) = token {
+        if let CanonicalToken::U128(v) = token {
             visitor.visit_u128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -348,7 +345,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F32(v) = token {
+        if let CanonicalToken::F32(v) = token {
             visitor.visit_f32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -360,7 +357,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F64(v) = token {
+        if let CanonicalToken::F64(v) = token {
             visitor.visit_f64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -372,7 +369,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Char(v) = token {
+        if let CanonicalToken::Char(v) = token {
             visitor.visit_char(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -384,7 +381,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_str(v)
             } else {
@@ -400,7 +397,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             visitor.visit_string(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -412,7 +409,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_bytes(v)
             } else {
@@ -428,7 +425,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             visitor.visit_byte_buf(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -440,8 +437,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         match self.next_token()? {
-            Token::Some => visitor.visit_some(self),
-            Token::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::None => visitor.visit_none(),
             token => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -451,7 +448,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Unit = token {
+        if let CanonicalToken::Unit = token {
             visitor.visit_unit()
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -467,7 +464,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::UnitStruct { name: struct_name } = token {
+        if let CanonicalToken::UnitStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_unit()
             } else {
@@ -487,7 +484,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::NewtypeStruct { name: struct_name } = token {
+        if let CanonicalToken::NewtypeStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_newtype_struct(self)
             } else {
@@ -503,13 +500,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Seq { len } = token {
+        if let CanonicalToken::Seq { len } = token {
             let mut access = SeqAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::SeqEnd,
+                end_token: EndToken::Seq,
                 ended: false,
             };
             let result = visitor.visit_seq(&mut access)?;
@@ -525,14 +522,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Tuple { len: token_len } = token {
+        if let CanonicalToken::Tuple { len: token_len } = token {
             if len == *token_len {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -556,7 +553,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::TupleStruct {
+        if let CanonicalToken::TupleStruct {
             name: token_name,
             len: token_len,
         } = token
@@ -571,7 +568,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -588,13 +585,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Map { len } = token {
+        if let CanonicalToken::Map { len } = token {
             let mut access = MapAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::MapEnd,
+                end_token: EndToken::Map,
                 ended: false,
             };
             let result = visitor.visit_map(&mut access)?;
@@ -617,7 +614,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let token = self.next_token()?;
 
         match token {
-            Token::Struct {
+            CanonicalToken::Struct {
                 name: token_name,
                 len,
             } => {
@@ -627,7 +624,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                         len: Some(*len),
 
-                        end_token: Token::StructEnd,
+                        end_token: EndToken::Struct,
                         ended: false,
                     };
                     let result = visitor.visit_map(&mut access)?;
@@ -637,13 +634,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     Err(Self::Error::invalid_value((token).into(), &visitor))
                 }
             }
-            Token::Seq { len } => {
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -665,16 +662,16 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::UnitVariant {
+            CanonicalToken::UnitVariant {
                 name: token_name, ..
             }
-            | Token::NewtypeVariant {
+            | CanonicalToken::NewtypeVariant {
                 name: token_name, ..
             }
-            | Token::TupleVariant {
+            | CanonicalToken::TupleVariant {
                 name: token_name, ..
             }
-            | Token::StructVariant {
+            | CanonicalToken::StructVariant {
                 name: token_name, ..
             } => {
                 if name == *token_name {
@@ -696,8 +693,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::Str(v) => visitor.visit_str(v),
-            Token::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -716,11 +713,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 impl<'a> Deserializer<'a> {
     #[must_use]
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder<T>(tokens: T) -> Builder
+    where
+        T: IntoIterator<Item = Token>,
+    {
+        Builder::new(tokens)
     }
 
-    fn next_token(&mut self) -> Result<&'a Token, Error> {
+    fn next_token(&mut self) -> Result<&'a CanonicalToken, Error> {
         loop {
             let token = self
                 .revisited_token
@@ -729,14 +729,40 @@ impl<'a> Deserializer<'a> {
                 .chain(&mut self.tokens)
                 .next()
                 .ok_or(Error::EndOfTokens)?;
-            if !matches!(token, Token::SkippedField(_)) {
+            if !matches!(token, CanonicalToken::SkippedField(_)) {
                 return Ok(token);
             }
         }
     }
 
-    fn revisit_token(&mut self, token: &'a Token) {
+    fn revisit_token(&mut self, token: &'a CanonicalToken) {
         self.revisited_token = Some(token);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum EndToken {
+    Seq,
+    Tuple,
+    TupleStruct,
+    TupleVariant,
+    Map,
+    Struct,
+    StructVariant,
+}
+
+impl PartialEq<EndToken> for CanonicalToken {
+    fn eq(&self, other: &EndToken) -> bool {
+        matches!(
+            (self, other),
+            (Self::SeqEnd, EndToken::Seq)
+                | (Self::TupleEnd, EndToken::Tuple)
+                | (Self::TupleStructEnd, EndToken::TupleStruct)
+                | (Self::TupleVariantEnd, EndToken::TupleVariant)
+                | (Self::MapEnd, EndToken::Map)
+                | (Self::StructEnd, EndToken::Struct)
+                | (Self::StructVariantEnd, EndToken::StructVariant)
+        )
     }
 }
 
@@ -745,7 +771,7 @@ struct SeqAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -776,7 +802,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
 impl SeqAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -788,7 +814,7 @@ struct MapAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -826,7 +852,7 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
 impl MapAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -884,7 +910,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: Some(len),
 
-            end_token: Token::TupleVariantEnd,
+            end_token: EndToken::TupleVariant,
             ended: false,
         })
     }
@@ -902,7 +928,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: None,
 
-            end_token: Token::StructVariantEnd,
+            end_token: EndToken::StructVariant,
             ended: false,
         })
     }
@@ -924,10 +950,10 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant, .. }
-            | Token::TupleVariant { variant, .. }
-            | Token::NewtypeVariant { variant, .. }
-            | Token::StructVariant { variant, .. } => visitor.visit_str(variant),
+            CanonicalToken::UnitVariant { variant, .. }
+            | CanonicalToken::TupleVariant { variant, .. }
+            | CanonicalToken::NewtypeVariant { variant, .. }
+            | CanonicalToken::StructVariant { variant, .. } => visitor.visit_str(variant),
             _ => unreachable!(),
         }
     }
@@ -967,7 +993,6 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         self.deserialize_u32(visitor)
     }
 
-    #[cfg(has_i128)]
     fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -994,10 +1019,12 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant_index, .. }
-            | Token::TupleVariant { variant_index, .. }
-            | Token::NewtypeVariant { variant_index, .. }
-            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(*variant_index),
+            CanonicalToken::UnitVariant { variant_index, .. }
+            | CanonicalToken::TupleVariant { variant_index, .. }
+            | CanonicalToken::NewtypeVariant { variant_index, .. }
+            | CanonicalToken::StructVariant { variant_index, .. } => {
+                visitor.visit_u32(*variant_index)
+            }
             _ => unreachable!(),
         }
     }
@@ -1009,7 +1036,6 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         self.deserialize_u32(visitor)
     }
 
-    #[cfg(has_i128)]
     fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -1183,56 +1209,64 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
 /// Construction of a `Deserializer` follows the builder pattern. Configuration options can be set
 /// on the `Builder`, and then the actual `Deserializer` is constructed by calling [`build()`].
 ///
-/// Note that providing [`Tokens`] using the [`tokens()`] method is required.
-///
 /// # Example
 /// ``` rust
 /// use serde_assert::{
 ///     Deserializer,
 ///     Token,
-///     Tokens,
 /// };
 ///
-/// let deserializer = Deserializer::builder()
-///     .tokens(Tokens(vec![Token::Bool(true)]))
+/// let deserializer = Deserializer::builder([Token::Bool(true)])
 ///     .is_human_readable(false)
 ///     .self_describing(true)
 ///     .build();
 /// ```
 ///
 /// [`build()`]: Builder::build()
-/// [`tokens()`]: Builder::tokens()
-#[derive(Debug, Default)]
+/// [::builder()`]: Builder::tokens()
+#[derive(Debug)]
 pub struct Builder {
-    tokens: Option<Tokens>,
+    tokens: Tokens,
 
-    is_human_readable: Option<bool>,
-    self_describing: Option<bool>,
-    zero_copy: Option<bool>,
+    is_human_readable: bool,
+    self_describing: bool,
+    zero_copy: bool,
 }
 
 impl Builder {
-    /// Provides the [`Tokens`] to be used as the input source during deserialization.
-    ///
-    /// Calling this method before [`build()`] is required.
-    ///
-    /// # Example
-    /// ``` rust
-    /// use serde_assert::{
-    ///     Deserializer,
-    ///     Token,
-    ///     Tokens,
-    /// };
-    ///
-    /// let deserializer = Deserializer::builder()
-    ///     .tokens(Tokens(vec![Token::Bool(true)]))
-    ///     .build();
-    /// ```
-    ///
-    /// [`build()`]: Builder::build()
-    pub fn tokens(&mut self, tokens: Tokens) -> &mut Self {
-        self.tokens = Some(tokens);
-        self
+    /// Creates a new `Builder` containing the provided tokens.
+    fn new<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token>,
+    {
+        fn collect_canonical<I>(tokens: &mut Vec<CanonicalToken>, iter: I)
+        where
+            I: Iterator<Item = Token>,
+        {
+            for token in iter {
+                match token.try_into() {
+                    Ok(canonical_token) => tokens.push(canonical_token),
+                    Err(UnorderedTokens(unordered_tokens)) => {
+                        collect_canonical(
+                            tokens,
+                            unordered_tokens.iter().copied().flatten().cloned(),
+                        );
+                    }
+                }
+            }
+        }
+
+        Self {
+            tokens: {
+                let mut canonical_tokens = Vec::new();
+                collect_canonical(&mut canonical_tokens, tokens.into_iter());
+                Tokens(canonical_tokens)
+            },
+
+            is_human_readable: true,
+            self_describing: false,
+            zero_copy: true,
+        }
     }
 
     /// Determines whether the deserializer will interpret the input tokens in a readable or compact
@@ -1248,16 +1282,14 @@ impl Builder {
     /// use serde_assert::{
     ///     Deserializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
-    /// let deserializer = Deserializer::builder()
-    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    /// let deserializer = Deserializer::builder([Token::Bool(true)])
     ///     .is_human_readable(false)
     ///     .build();
     /// ```
     pub fn is_human_readable(&mut self, is_human_readable: bool) -> &mut Self {
-        self.is_human_readable = Some(is_human_readable);
+        self.is_human_readable = is_human_readable;
         self
     }
 
@@ -1274,18 +1306,16 @@ impl Builder {
     /// use serde_assert::{
     ///     Deserializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
-    /// let deserializer = Deserializer::builder()
-    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    /// let deserializer = Deserializer::builder([Token::Bool(true)])
     ///     .self_describing(true)
     ///     .build();
     /// ```
     ///
     /// [`deserialize_any()`]: ../struct.Deserializer.html#method.deserialize_any
     pub fn self_describing(&mut self, self_describing: bool) -> &mut Self {
-        self.self_describing = Some(self_describing);
+        self.self_describing = self_describing;
         self
     }
 
@@ -1302,16 +1332,14 @@ impl Builder {
     /// use serde_assert::{
     ///     Deserializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
-    /// let deserializer = Deserializer::builder()
-    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    /// let deserializer = Deserializer::builder([Token::Bool(true)])
     ///     .zero_copy(false)
     ///     .build();
     /// ```
     pub fn zero_copy(&mut self, zero_copy: bool) -> &mut Self {
-        self.zero_copy = Some(zero_copy);
+        self.zero_copy = zero_copy;
         self
     }
 
@@ -1324,30 +1352,22 @@ impl Builder {
     /// use serde_assert::{
     ///     Deserializer,
     ///     Token,
-    ///     Tokens,
     /// };
     ///
-    /// let deserializer = Deserializer::builder()
-    ///     .tokens(Tokens(vec![Token::Bool(true)]))
+    /// let deserializer = Deserializer::builder([Token::Bool(true)])
     ///     .is_human_readable(false)
     ///     .build();
     /// ```
-    ///
-    /// # Panics
-    /// This method will panic if [`Builder::tokens()`] was never called.
-    pub fn build<'a>(&mut self) -> Deserializer<'a> {
+    #[must_use]
+    pub fn build<'a>(&self) -> Deserializer<'a> {
         Deserializer {
-            tokens: token::Iter::new(
-                self.tokens
-                    .clone()
-                    .expect("no tokens provided to `Deserializer` `Builder`"),
-            ),
+            tokens: token::OwningIter::new(self.tokens.clone()),
 
             revisited_token: None,
 
-            is_human_readable: self.is_human_readable.unwrap_or(true),
-            self_describing: self.self_describing.unwrap_or(false),
-            zero_copy: self.zero_copy.unwrap_or(true),
+            is_human_readable: self.is_human_readable,
+            self_describing: self.self_describing,
+            zero_copy: self.zero_copy,
         }
     }
 }
@@ -1366,12 +1386,25 @@ impl Builder {
 /// ```
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    /// The [`Deserializer`] reached the end of the input [`Tokens`] before deserialization was
+    /// The [`Deserializer`] reached the end of the input [`Token`]s before deserialization was
     /// completed.
     EndOfTokens,
 
-    /// Expected the given token, but encountered a different token instead.
-    ExpectedToken(Token),
+    /// Expected a `Token::SeqEnd`.
+    ExpectedSeqEnd,
+    /// Expected a `Token::TupleEnd`.
+    ExpectedTupleEnd,
+    /// Expected a `Token::TupleStructEnd`.
+    ExpectedTupleStructEnd,
+    /// Expected a `Token::TupleVariantEnd`.
+    ExpectedTupleVariantEnd,
+    /// Expected a `Token::MapEnd`.
+    ExpectedMapEnd,
+    /// Expected a `Token::StructEnd`.
+    ExpectedStructEnd,
+    /// Expected a `Token::StructVariantEnd`.
+    ExpectedStructVariantEnd,
+
     /// An unsupported [`serde::Deserializer`] method was called during deserialization of an
     /// `enum` variant.
     ///
@@ -1420,11 +1453,31 @@ pub enum Error {
     DuplicateField(&'static str),
 }
 
+impl Error {
+    fn expected_end_token(end_token: EndToken) -> Self {
+        match end_token {
+            EndToken::Seq => Self::ExpectedSeqEnd,
+            EndToken::Tuple => Self::ExpectedTupleEnd,
+            EndToken::TupleStruct => Self::ExpectedTupleStructEnd,
+            EndToken::TupleVariant => Self::ExpectedTupleVariantEnd,
+            EndToken::Map => Self::ExpectedMapEnd,
+            EndToken::Struct => Self::ExpectedStructEnd,
+            EndToken::StructVariant => Self::ExpectedStructVariantEnd,
+        }
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
-            Self::ExpectedToken(token) => write!(f, "expected token {token}"),
+            Self::ExpectedSeqEnd => f.write_str("expected token SeqEnd"),
+            Self::ExpectedTupleEnd => f.write_str("expected token TupleEnd"),
+            Self::ExpectedTupleStructEnd => f.write_str("expected token TupleStructEnd"),
+            Self::ExpectedTupleVariantEnd => f.write_str("expected token TupleVariantEnd"),
+            Self::ExpectedMapEnd => f.write_str("expected token MapEnd"),
+            Self::ExpectedStructEnd => f.write_str("expected token StructEnd"),
+            Self::ExpectedStructVariantEnd => f.write_str("expected token StructVariantEnd"),
             Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
@@ -1486,8 +1539,8 @@ mod tests {
         Error,
     };
     use crate::{
+        token::CanonicalToken,
         Token,
-        Tokens,
     };
     use alloc::{
         borrow::ToOwned,
@@ -1525,13 +1578,11 @@ mod tests {
         I16(i16),
         I32(i32),
         I64(i64),
-        #[cfg(has_i128)]
         I128(i128),
         U8(u8),
         U16(u16),
         U32(u32),
         U64(u64),
-        #[cfg(has_i128)]
         U128(u128),
         F32(f32),
         F64(f64),
@@ -1545,14 +1596,8 @@ mod tests {
         NewtypeVariant(u32),
         Seq(u32, u32, u32),
         TupleVariant(u32, u32, u32),
-        Map {
-            foo: u32,
-            bar: bool,
-        },
-        StructVariant {
-            foo: u32,
-            bar: bool,
-        },
+        Map { foo: u32, bar: bool },
+        StructVariant { foo: u32, bar: bool },
     }
 
     impl<'de> Deserialize<'de> for Any {
@@ -1604,7 +1649,6 @@ mod tests {
                     Ok(Any::I64(v))
                 }
 
-                #[cfg(has_i128)]
                 fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
@@ -1640,7 +1684,6 @@ mod tests {
                     Ok(Any::U64(v))
                 }
 
-                #[cfg(has_i128)]
                 fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
@@ -1902,8 +1945,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_bool() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
+        let mut deserializer = Deserializer::builder([Token::Bool(true)])
             .self_describing(true)
             .build();
 
@@ -1912,8 +1954,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_i8() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I8(42)]))
+        let mut deserializer = Deserializer::builder([Token::I8(42)])
             .self_describing(true)
             .build();
 
@@ -1922,8 +1963,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_i16() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I16(42)]))
+        let mut deserializer = Deserializer::builder([Token::I16(42)])
             .self_describing(true)
             .build();
 
@@ -1932,8 +1972,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_i32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I32(42)]))
+        let mut deserializer = Deserializer::builder([Token::I32(42)])
             .self_describing(true)
             .build();
 
@@ -1942,19 +1981,16 @@ mod tests {
 
     #[test]
     fn deserialize_any_i64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I64(42)]))
+        let mut deserializer = Deserializer::builder([Token::I64(42)])
             .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::I64(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_any_i128() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I128(42)]))
+        let mut deserializer = Deserializer::builder([Token::I128(42)])
             .self_describing(true)
             .build();
 
@@ -1963,8 +1999,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_u8() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U8(42)]))
+        let mut deserializer = Deserializer::builder([Token::U8(42)])
             .self_describing(true)
             .build();
 
@@ -1973,8 +2008,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_u16() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U16(42)]))
+        let mut deserializer = Deserializer::builder([Token::U16(42)])
             .self_describing(true)
             .build();
 
@@ -1983,8 +2017,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_u32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U32(42)]))
+        let mut deserializer = Deserializer::builder([Token::U32(42)])
             .self_describing(true)
             .build();
 
@@ -1993,19 +2026,16 @@ mod tests {
 
     #[test]
     fn deserialize_any_u64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U64(42)]))
+        let mut deserializer = Deserializer::builder([Token::U64(42)])
             .self_describing(true)
             .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::U64(42));
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_any_u128() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U128(42)]))
+        let mut deserializer = Deserializer::builder([Token::U128(42)])
             .self_describing(true)
             .build();
 
@@ -2014,8 +2044,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_f32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::F32(42.)]))
+        let mut deserializer = Deserializer::builder([Token::F32(42.)])
             .self_describing(true)
             .build();
 
@@ -2024,8 +2053,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_f64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::F64(42.)]))
+        let mut deserializer = Deserializer::builder([Token::F64(42.)])
             .self_describing(true)
             .build();
 
@@ -2034,8 +2062,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_char() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Char('a')]))
+        let mut deserializer = Deserializer::builder([Token::Char('a')])
             .self_describing(true)
             .build();
 
@@ -2044,8 +2071,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_str() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())])
             .self_describing(true)
             .build();
 
@@ -2057,8 +2083,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_bytes() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())])
             .self_describing(true)
             .build();
 
@@ -2070,8 +2095,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_some() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Some, Token::U32(42)]))
+        let mut deserializer = Deserializer::builder([Token::Some, Token::U32(42)])
             .self_describing(true)
             .build();
 
@@ -2080,8 +2104,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_none() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::None]))
+        let mut deserializer = Deserializer::builder([Token::None])
             .self_describing(true)
             .build();
 
@@ -2090,8 +2113,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_unit() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Unit]))
+        let mut deserializer = Deserializer::builder([Token::Unit])
             .self_describing(true)
             .build();
 
@@ -2100,8 +2122,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_unit_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitStruct { name: "foo" }]))
+        let mut deserializer = Deserializer::builder([Token::UnitStruct { name: "foo" }])
             .self_describing(true)
             .build();
 
@@ -2110,116 +2131,107 @@ mod tests {
 
     #[test]
     fn deserialize_any_unit_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "foo",
-                variant_index: 0,
-                variant: "unit",
-            }]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "foo",
+            variant_index: 0,
+            variant: "unit",
+        }])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::UnitVariant,);
     }
 
     #[test]
     fn deserialize_any_newtype_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeStruct { name: "foo" },
-                Token::U32(42),
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer =
+            Deserializer::builder([Token::NewtypeStruct { name: "foo" }, Token::U32(42)])
+                .self_describing(true)
+                .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeStruct(42),);
     }
 
     #[test]
     fn deserialize_any_newtype_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeVariant {
-                    name: "foo",
-                    variant_index: 0,
-                    variant: "newtype",
-                },
-                Token::U32(42),
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::NewtypeVariant {
+                name: "foo",
+                variant_index: 0,
+                variant: "newtype",
+            },
+            Token::U32(42),
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::NewtypeVariant(42),);
     }
 
     #[test]
     fn deserialize_any_seq() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Seq { len: None },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::SeqEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Seq { len: None },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::SeqEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
     }
 
     #[test]
     fn deserialize_any_tuple() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
     }
 
     #[test]
     fn deserialize_any_tuple_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleStruct {
-                    name: "foo",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleStructEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleStruct {
+                name: "foo",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleStructEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(Any::deserialize(&mut deserializer), Any::Seq(1, 2, 3),);
     }
 
     #[test]
     fn deserialize_any_tuple_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleVariant {
-                    name: "foo",
-                    variant_index: 0,
-                    variant: "tuple",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleVariantEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleVariant {
+                name: "foo",
+                variant_index: 0,
+                variant: "tuple",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleVariantEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
@@ -2229,17 +2241,16 @@ mod tests {
 
     #[test]
     fn deserialize_any_map() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Map { len: Some(3) },
-                Token::Str("foo".to_owned()),
-                Token::U32(42),
-                Token::Str("bar".to_owned()),
-                Token::Bool(false),
-                Token::MapEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Map { len: Some(3) },
+            Token::Str("foo".to_owned()),
+            Token::U32(42),
+            Token::Str("bar".to_owned()),
+            Token::Bool(false),
+            Token::MapEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
@@ -2252,8 +2263,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_field() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Field("foo")]))
+        let mut deserializer = Deserializer::builder([Token::Field("foo")])
             .self_describing(true)
             .build();
 
@@ -2265,20 +2275,19 @@ mod tests {
 
     #[test]
     fn deserialize_any_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "foo",
-                    len: 3,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "foo",
+                len: 3,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
@@ -2291,22 +2300,21 @@ mod tests {
 
     #[test]
     fn deserialize_any_struct_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::StructVariant {
-                    name: "foo",
-                    variant_index: 0,
-                    variant: "struct",
-                    len: 3,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructVariantEnd,
-            ]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::StructVariant {
+                name: "foo",
+                variant_index: 0,
+                variant: "struct",
+                len: 3,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructVariantEnd,
+        ])
+        .self_describing(true)
+        .build();
 
         assert_ok_eq!(
             Any::deserialize(&mut deserializer),
@@ -2319,100 +2327,91 @@ mod tests {
 
     #[test]
     fn deserialize_any_seq_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::SeqEnd]))
+        let mut deserializer = Deserializer::builder([Token::SeqEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::SeqEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::SeqEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_tuple_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::TupleEnd]))
+        let mut deserializer = Deserializer::builder([Token::TupleEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_tuple_struct_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::TupleStructEnd]))
+        let mut deserializer = Deserializer::builder([Token::TupleStructEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleStructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleStructEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_tuple_variant_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::TupleVariantEnd]))
+        let mut deserializer = Deserializer::builder([Token::TupleVariantEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleVariantEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_map_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::MapEnd]))
+        let mut deserializer = Deserializer::builder([Token::MapEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::MapEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::MapEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_struct_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::StructEnd]))
+        let mut deserializer = Deserializer::builder([Token::StructEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_struct_variant_end_fails() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::StructVariantEnd]))
+        let mut deserializer = Deserializer::builder([Token::StructVariantEnd])
             .self_describing(true)
             .build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructVariantEnd).into(), &"struct Any"),
         );
     }
 
     #[test]
     fn deserialize_any_default_not_self_describing() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
@@ -2422,8 +2421,7 @@ mod tests {
 
     #[test]
     fn deserialize_any_not_self_describing() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
+        let mut deserializer = Deserializer::builder([Token::Bool(true)])
             .self_describing(false)
             .build();
 
@@ -2435,299 +2433,239 @@ mod tests {
 
     #[test]
     fn deserialize_bool() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_ok_eq!(bool::deserialize(&mut deserializer), true);
     }
 
     #[test]
     fn deserialize_bool_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I8(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I8(42)]).build();
 
         assert_err_eq!(
             bool::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::I8(42)).into(), &"a boolean")
+            Error::invalid_type((&CanonicalToken::I8(42)).into(), &"a boolean")
         );
     }
 
     #[test]
     fn deserialize_i8() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I8(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I8(42)]).build();
 
         assert_ok_eq!(i8::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_i8_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             i8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i8")
         );
     }
 
     #[test]
     fn deserialize_i16() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I16(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I16(42)]).build();
 
         assert_ok_eq!(i16::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_i16_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             i16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i16")
         );
     }
 
     #[test]
     fn deserialize_i32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I32(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I32(42)]).build();
 
         assert_ok_eq!(i32::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_i32_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             i32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i32")
         );
     }
 
     #[test]
     fn deserialize_i64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I64(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I64(42)]).build();
 
         assert_ok_eq!(i64::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_i64_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             i64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i64")
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_i128() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::I128(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::I128(42)]).build();
 
         assert_ok_eq!(i128::deserialize(&mut deserializer), 42);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_i128_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             i128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i128")
         );
     }
 
     #[test]
     fn deserialize_u8() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U8(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::U8(42)]).build();
 
         assert_ok_eq!(u8::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_u8_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             u8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u8")
         );
     }
 
     #[test]
     fn deserialize_u16() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U16(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::U16(42)]).build();
 
         assert_ok_eq!(u16::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_u16_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             u16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u16")
         );
     }
 
     #[test]
     fn deserialize_u32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U32(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::U32(42)]).build();
 
         assert_ok_eq!(u32::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_u32_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             u32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u32")
         );
     }
 
     #[test]
     fn deserialize_u64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U64(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::U64(42)]).build();
 
         assert_ok_eq!(u64::deserialize(&mut deserializer), 42);
     }
 
     #[test]
     fn deserialize_u64_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             u64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u64")
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_u128() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::U128(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::U128(42)]).build();
 
         assert_ok_eq!(u128::deserialize(&mut deserializer), 42);
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn deserialize_u128_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             u128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u128")
         );
     }
 
     #[test]
     fn deserialize_f32() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::F32(42.)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::F32(42.)]).build();
 
         assert_ok_eq!(f32::deserialize(&mut deserializer), 42.);
     }
 
     #[test]
     fn deserialize_f32_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             f32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f32")
         );
     }
 
     #[test]
     fn deserialize_f64() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::F64(42.)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::F64(42.)]).build();
 
         assert_ok_eq!(f64::deserialize(&mut deserializer), 42.);
     }
 
     #[test]
     fn deserialize_f64_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             f64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f64")
         );
     }
 
     #[test]
     fn deserialize_char() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Char('a')]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Char('a')]).build();
 
         assert_ok_eq!(char::deserialize(&mut deserializer), 'a');
     }
 
     #[test]
     fn deserialize_char_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             char::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a character")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a character")
         );
     }
 
@@ -2762,17 +2700,14 @@ mod tests {
 
     #[test]
     fn deserialize_str() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())]).build();
 
         assert_ok_eq!(Str::deserialize(&mut deserializer), Str("foo".to_owned()));
     }
 
     #[test]
     fn deserialize_str_zero_copy_disabled() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())])
             .zero_copy(false)
             .build();
 
@@ -2781,13 +2716,11 @@ mod tests {
 
     #[test]
     fn deserialize_str_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Str::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"str")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"str")
         );
     }
 
@@ -2822,9 +2755,7 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_str() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())]).build();
 
         assert_ok_eq!(
             BorrowedStr::deserialize(&mut deserializer),
@@ -2834,35 +2765,33 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_str_zero_copy_disabled_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())])
             .zero_copy(false)
             .build();
 
         assert_err_eq!(
             BorrowedStr::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Str("foo".to_owned())).into(), &"a borrowed str")
+            Error::invalid_type(
+                (&CanonicalToken::Str("foo".to_owned())).into(),
+                &"a borrowed str"
+            )
         );
     }
 
     #[test]
     fn deserialize_string() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())]).build();
 
         assert_ok_eq!(String::deserialize(&mut deserializer), "foo".to_owned());
     }
 
     #[test]
     fn deserialize_string_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             String::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a string")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a string")
         );
     }
 
@@ -2897,9 +2826,7 @@ mod tests {
 
     #[test]
     fn deserialize_bytes() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())]).build();
 
         assert_ok_eq!(
             Bytes::deserialize(&mut deserializer),
@@ -2909,8 +2836,7 @@ mod tests {
 
     #[test]
     fn deserialize_bytes_zero_copy_disabled() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())])
             .zero_copy(false)
             .build();
 
@@ -2922,13 +2848,11 @@ mod tests {
 
     #[test]
     fn deserialize_bytes_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Bytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"bytes")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"bytes")
         );
     }
 
@@ -2963,9 +2887,7 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_bytes() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())]).build();
 
         assert_ok_eq!(
             BorrowedBytes::deserialize(&mut deserializer),
@@ -2975,22 +2897,22 @@ mod tests {
 
     #[test]
     fn deserialize_borrowed_bytes_zero_copy_disabled_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())])
             .zero_copy(false)
             .build();
 
         assert_err_eq!(
             BorrowedBytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bytes(b"foo".to_vec())).into(), &"borrowed bytes")
+            Error::invalid_type(
+                (&CanonicalToken::Bytes(b"foo".to_vec())).into(),
+                &"borrowed bytes"
+            )
         );
     }
 
     #[test]
     fn deserialize_byte_buf() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bytes(b"foo".to_vec())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bytes(b"foo".to_vec())]).build();
 
         assert_ok_eq!(
             ByteBuf::deserialize(&mut deserializer),
@@ -3000,64 +2922,52 @@ mod tests {
 
     #[test]
     fn deserialize_byte_buf_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             ByteBuf::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"byte array")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"byte array")
         );
     }
 
     #[test]
     fn deserialize_option_some() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Some, Token::U32(42)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Some, Token::U32(42)]).build();
 
         assert_ok_eq!(Option::<u32>::deserialize(&mut deserializer), Some(42));
     }
 
     #[test]
     fn deserialize_option_none() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::None]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::None]).build();
 
         assert_ok_eq!(Option::<u32>::deserialize(&mut deserializer), None);
     }
 
     #[test]
     fn deserialize_option_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Option::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"option")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"option")
         );
     }
 
     #[test]
     fn deserialize_unit() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Unit]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Unit]).build();
 
         assert_ok_eq!(<()>::deserialize(&mut deserializer), ());
     }
 
     #[test]
     fn deserialize_unit_error() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             <()>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit")
         );
     }
 
@@ -3092,23 +3002,20 @@ mod tests {
 
     #[test]
     fn deserialize_unit_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitStruct { name: "Unit" }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitStruct { name: "Unit" }]).build();
 
         assert_ok_eq!(Unit::deserialize(&mut deserializer), Unit);
     }
 
     #[test]
     fn deserialize_unit_struct_error_invalid_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitStruct { name: "Not Unit" }]))
-            .build();
+        let mut deserializer =
+            Deserializer::builder([Token::UnitStruct { name: "Not Unit" }]).build();
 
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitStruct { name: "Not Unit" }).into(),
+                (&CanonicalToken::UnitStruct { name: "Not Unit" }).into(),
                 &"unit struct"
             )
         );
@@ -3116,13 +3023,11 @@ mod tests {
 
     #[test]
     fn deserialize_unit_struct_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit struct")
         );
     }
 
@@ -3157,31 +3062,27 @@ mod tests {
 
     #[test]
     fn deserialize_newtype_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeStruct { name: "Newtype" },
-                Token::U32(42),
-            ]))
-            .build();
+        let mut deserializer =
+            Deserializer::builder([Token::NewtypeStruct { name: "Newtype" }, Token::U32(42)])
+                .build();
 
         assert_ok_eq!(Newtype::deserialize(&mut deserializer), Newtype(42));
     }
 
     #[test]
     fn deserialize_newtype_struct_error_invalid_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeStruct {
-                    name: "Not Newtype",
-                },
-                Token::U32(42),
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::NewtypeStruct {
+                name: "Not Newtype",
+            },
+            Token::U32(42),
+        ])
+        .build();
 
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeStruct {
+                (&CanonicalToken::NewtypeStruct {
                     name: "Not Newtype"
                 })
                     .into(),
@@ -3192,40 +3093,35 @@ mod tests {
 
     #[test]
     fn deserialize_newtype_struct_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"newtype struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"newtype struct")
         );
     }
 
     #[test]
     fn deserialize_seq() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Seq { len: Some(3) },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::SeqEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Seq { len: Some(3) },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::SeqEnd,
+        ])
+        .build();
 
         assert_ok_eq!(Vec::<u32>::deserialize(&mut deserializer), vec![1, 2, 3]);
     }
 
     #[test]
     fn deserialize_seq_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Vec::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a sequence")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a sequence")
         );
     }
 
@@ -3268,39 +3164,36 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Seq { len: Some(0) }, Token::SeqEnd]))
-            .build();
+        let mut deserializer =
+            Deserializer::builder([Token::Seq { len: Some(0) }, Token::SeqEnd]).build();
 
         assert_ok_eq!(Seq::deserialize(&mut deserializer), Seq);
     }
 
     #[test]
     fn deserialize_tuple() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ])
+        .build();
 
         assert_ok_eq!(<(u32, u32, u32)>::deserialize(&mut deserializer), (1, 2, 3));
     }
 
     #[test]
     fn deserialize_tuple_error_len() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Tuple { len: 1 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Tuple { len: 1 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
@@ -3310,32 +3203,29 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a tuple of size 3")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a tuple of size 3")
         );
     }
 
     #[test]
     fn deserialize_tuple_error_too_many_elements() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Tuple { len: 3 },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::U32(4),
-                Token::TupleEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Tuple { len: 3 },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::U32(4),
+            Token::TupleEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::TupleEnd)
+            Error::ExpectedTupleEnd
         );
     }
 
@@ -3377,18 +3267,17 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleStruct {
-                    name: "TupleStruct",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleStructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleStruct {
+                name: "TupleStruct",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleStructEnd,
+        ])
+        .build();
 
         assert_ok_eq!(
             TupleStruct::deserialize(&mut deserializer),
@@ -3398,23 +3287,22 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_struct_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleStruct {
-                    name: "Not TupleStruct",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleStructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleStruct {
+                name: "Not TupleStruct",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleStructEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleStruct {
+                (&CanonicalToken::TupleStruct {
                     name: "Not TupleStruct",
                     len: 3
                 })
@@ -3426,18 +3314,17 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_struct_error_len() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleStruct {
-                    name: "TupleStruct",
-                    len: 1,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleStructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleStruct {
+                name: "TupleStruct",
+                len: 1,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleStructEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
@@ -3447,30 +3334,27 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_struct_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"TupleStruct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"TupleStruct")
         );
     }
 
     #[test]
     fn deserialize_map() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Map { len: Some(3) },
-                Token::Char('a'),
-                Token::U32(1),
-                Token::Char('b'),
-                Token::U32(2),
-                Token::Char('c'),
-                Token::U32(3),
-                Token::MapEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Map { len: Some(3) },
+            Token::Char('a'),
+            Token::U32(1),
+            Token::Char('b'),
+            Token::U32(2),
+            Token::Char('c'),
+            Token::U32(3),
+            Token::MapEnd,
+        ])
+        .build();
 
         assert_ok_eq!(HashMap::<char, u32>::deserialize(&mut deserializer), {
             let mut map = HashMap::new();
@@ -3483,13 +3367,11 @@ mod tests {
 
     #[test]
     fn deserialize_map_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             HashMap::<char, u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a map")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a map")
         );
     }
 
@@ -3501,19 +3383,18 @@ mod tests {
 
     #[test]
     fn deserialize_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "Struct",
-                    len: 2,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
 
         assert_ok_eq!(
             Struct::deserialize(&mut deserializer),
@@ -3526,24 +3407,23 @@ mod tests {
 
     #[test]
     fn deserialize_struct_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "Not Struct",
-                    len: 2,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Not Struct",
+                len: 2,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::Struct {
+                (&CanonicalToken::Struct {
                     name: "Not Struct",
                     len: 2
                 })
@@ -3555,13 +3435,11 @@ mod tests {
 
     #[test]
     fn deserialize_struct_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"struct Struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"struct Struct")
         );
     }
 
@@ -3596,34 +3474,32 @@ mod tests {
 
     #[test]
     fn deserialize_struct_error_end_token_assertion_succeeds() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "EmptyStruct",
-                    len: 0,
-                },
-                Token::StructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "EmptyStruct",
+                len: 0,
+            },
+            Token::StructEnd,
+        ])
+        .build();
 
         assert_ok_eq!(EmptyStruct::deserialize(&mut deserializer), EmptyStruct,);
     }
 
     #[test]
     fn deserialize_struct_error_end_token_assertion_failed() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "EmptyStruct",
-                    len: 0,
-                },
-                Token::MapEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "EmptyStruct",
+                len: 0,
+            },
+            Token::MapEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             EmptyStruct::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::StructEnd),
+            Error::ExpectedStructEnd,
         );
     }
 
@@ -3666,15 +3542,14 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Struct {
-                    name: "Struct",
-                    len: 0,
-                },
-                Token::StructEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 0,
+            },
+            Token::StructEnd,
+        ])
+        .build();
 
         assert_ok_eq!(Struct::deserialize(&mut deserializer), Struct);
     }
@@ -3687,14 +3562,13 @@ mod tests {
             bar: u32,
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::Seq { len: Some(2) },
-                Token::Bool(true),
-                Token::U32(42),
-                Token::SeqEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::Seq { len: Some(2) },
+            Token::Bool(true),
+            Token::U32(42),
+            Token::SeqEnd,
+        ])
+        .build();
 
         assert_ok_eq!(
             Struct::deserialize(&mut deserializer),
@@ -3712,31 +3586,29 @@ mod tests {
 
     #[test]
     fn deserialize_unit_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "Enum",
-                variant_index: 0,
-                variant: "Unit",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "Enum",
+            variant_index: 0,
+            variant: "Unit",
+        }])
+        .build();
 
         assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Unit,);
     }
 
     #[test]
     fn deserialize_unit_variant_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "Not Enum",
-                variant_index: 0,
-                variant: "Unit",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "Not Enum",
+            variant_index: 0,
+            variant: "Unit",
+        }])
+        .build();
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitVariant {
+                (&CanonicalToken::UnitVariant {
                     name: "Not Enum",
                     variant_index: 0,
                     variant: "Unit",
@@ -3749,37 +3621,35 @@ mod tests {
 
     #[test]
     fn deserialize_newtype_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeVariant {
-                    name: "Enum",
-                    variant_index: 1,
-                    variant: "Newtype",
-                },
-                Token::U32(42),
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::NewtypeVariant {
+                name: "Enum",
+                variant_index: 1,
+                variant: "Newtype",
+            },
+            Token::U32(42),
+        ])
+        .build();
 
         assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Newtype(42),);
     }
 
     #[test]
     fn deserialize_newtype_variant_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::NewtypeVariant {
-                    name: "Not Enum",
-                    variant_index: 1,
-                    variant: "Newtype",
-                },
-                Token::U32(42),
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::NewtypeVariant {
+                name: "Not Enum",
+                variant_index: 1,
+                variant: "Newtype",
+            },
+            Token::U32(42),
+        ])
+        .build();
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeVariant {
+                (&CanonicalToken::NewtypeVariant {
                     name: "Not Enum",
                     variant_index: 1,
                     variant: "Newtype",
@@ -3792,45 +3662,43 @@ mod tests {
 
     #[test]
     fn deserialize_tuple_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleVariant {
-                    name: "Enum",
-                    variant_index: 2,
-                    variant: "Tuple",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleVariant {
+                name: "Enum",
+                variant_index: 2,
+                variant: "Tuple",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleVariantEnd,
+        ])
+        .build();
 
         assert_ok_eq!(Enum::deserialize(&mut deserializer), Enum::Tuple(1, 2, 3),);
     }
 
     #[test]
     fn deserialize_tuple_variant_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleVariant {
-                    name: "Not Enum",
-                    variant_index: 2,
-                    variant: "Tuple",
-                    len: 3,
-                },
-                Token::U32(1),
-                Token::U32(2),
-                Token::U32(3),
-                Token::TupleVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleVariant {
+                name: "Not Enum",
+                variant_index: 2,
+                variant: "Tuple",
+                len: 3,
+            },
+            Token::U32(1),
+            Token::U32(2),
+            Token::U32(3),
+            Token::TupleVariantEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleVariant {
+                (&CanonicalToken::TupleVariant {
                     name: "Not Enum",
                     variant_index: 2,
                     variant: "Tuple",
@@ -3844,21 +3712,20 @@ mod tests {
 
     #[test]
     fn deserialize_struct_variant() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::StructVariant {
-                    name: "Enum",
-                    variant_index: 3,
-                    variant: "Struct",
-                    len: 2,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::StructVariant {
+                name: "Enum",
+                variant_index: 3,
+                variant: "Struct",
+                len: 2,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructVariantEnd,
+        ])
+        .build();
 
         assert_ok_eq!(
             Enum::deserialize(&mut deserializer),
@@ -3871,26 +3738,25 @@ mod tests {
 
     #[test]
     fn deserialize_struct_variant_error_name() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::StructVariant {
-                    name: "Not Enum",
-                    variant_index: 3,
-                    variant: "Struct",
-                    len: 2,
-                },
-                Token::Field("foo"),
-                Token::U32(42),
-                Token::Field("bar"),
-                Token::Bool(false),
-                Token::StructVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::StructVariant {
+                name: "Not Enum",
+                variant_index: 3,
+                variant: "Struct",
+                len: 2,
+            },
+            Token::Field("foo"),
+            Token::U32(42),
+            Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructVariantEnd,
+        ])
+        .build();
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::StructVariant {
+                (&CanonicalToken::StructVariant {
                     name: "Not Enum",
                     variant_index: 3,
                     variant: "Struct",
@@ -3904,13 +3770,11 @@ mod tests {
 
     #[test]
     fn deserialize_enum_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"enum Enum"),
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"enum Enum"),
         );
     }
 
@@ -3945,9 +3809,7 @@ mod tests {
 
     #[test]
     fn deserialize_identifier_str() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Str("foo".to_owned())]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Str("foo".to_owned())]).build();
 
         assert_ok_eq!(
             Identifier::deserialize(&mut deserializer),
@@ -3957,9 +3819,7 @@ mod tests {
 
     #[test]
     fn deserialize_identifier_field() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Field("foo")]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Field("foo")]).build();
 
         assert_ok_eq!(
             Identifier::deserialize(&mut deserializer),
@@ -3969,20 +3829,17 @@ mod tests {
 
     #[test]
     fn deserialize_identifier_error_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(false)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(false)]).build();
 
         assert_err_eq!(
             Identifier::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(false)).into(), &"identifier")
+            Error::invalid_type((&CanonicalToken::Bool(false)).into(), &"identifier")
         );
     }
 
     #[test]
     fn deserialize_ignored_any() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
+        let mut deserializer = Deserializer::builder([Token::Bool(true)])
             .self_describing(true)
             .build();
 
@@ -3991,9 +3848,7 @@ mod tests {
 
     #[test]
     fn deserialize_ignored_any_default_not_self_describing() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(true)]).build();
 
         assert_err_eq!(
             IgnoredAny::deserialize(&mut deserializer),
@@ -4003,8 +3858,7 @@ mod tests {
 
     #[test]
     fn deserialize_ignored_any_not_self_describing() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(true)]))
+        let mut deserializer = Deserializer::builder([Token::Bool(true)])
             .self_describing(false)
             .build();
 
@@ -4016,36 +3870,37 @@ mod tests {
 
     #[test]
     fn deserialize_skips_skipped_field() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::SkippedField("foo"), Token::Bool(true)]))
-            .build();
+        let mut deserializer =
+            Deserializer::builder([Token::SkippedField("foo"), Token::Bool(true)]).build();
+
+        assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+    }
+
+    #[test]
+    fn deserialize_from_unordered_tokens() {
+        let mut deserializer =
+            Deserializer::builder([Token::Unordered(&[&[Token::Bool(true)]])]).build();
 
         assert_ok_eq!(bool::deserialize(&mut deserializer), true);
     }
 
     #[test]
     fn is_human_readable_default() {
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
 
         assert!((&mut deserializer).is_human_readable());
     }
 
     #[test]
     fn is_human_readable_true() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(Vec::new()))
-            .is_human_readable(true)
-            .build();
+        let mut deserializer = Deserializer::builder([]).is_human_readable(true).build();
 
         assert!((&mut deserializer).is_human_readable());
     }
 
     #[test]
     fn is_human_readable_false() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(Vec::new()))
-            .is_human_readable(false)
-            .build();
+        let mut deserializer = Deserializer::builder([]).is_human_readable(false).build();
 
         assert!(!(&mut deserializer).is_human_readable());
     }
@@ -4092,13 +3947,12 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_any_unit() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Unit",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Unit",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4111,13 +3965,12 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_any_newtype() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::NewtypeVariant {
-                name: "EnumVariant",
-                variant_index: 1,
-                variant: "Newtype",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::NewtypeVariant {
+            name: "EnumVariant",
+            variant_index: 1,
+            variant: "Newtype",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4130,17 +3983,16 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_any_tuple() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleVariant {
-                    name: "EnumVariant",
-                    variant_index: 2,
-                    variant: "Tuple",
-                    len: 0,
-                },
-                Token::TupleVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleVariant {
+                name: "EnumVariant",
+                variant_index: 2,
+                variant: "Tuple",
+                len: 0,
+            },
+            Token::TupleVariantEnd,
+        ])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4153,17 +4005,16 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_any_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::StructVariant {
-                    name: "EnumVariant",
-                    variant_index: 3,
-                    variant: "Struct",
-                    len: 0,
-                },
-                Token::StructVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::StructVariant {
+                name: "EnumVariant",
+                variant_index: 3,
+                variant: "Struct",
+                len: 0,
+            },
+            Token::StructVariantEnd,
+        ])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4177,9 +4028,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "internal error: entered unreachable code")]
     fn enum_deserializer_deserialize_any_invalid_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(false)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(false)]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4215,7 +4064,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4263,13 +4112,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4317,13 +4165,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4371,13 +4218,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4425,13 +4271,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4442,7 +4287,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn enum_deserializer_deserialize_i128() {
         #[derive(Debug, PartialEq)]
@@ -4480,13 +4324,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4534,13 +4377,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4588,13 +4430,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4647,13 +4488,12 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_u32_unit() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Unit",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Unit",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4666,13 +4506,12 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_u32_newtype() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::NewtypeVariant {
-                name: "EnumVariant",
-                variant_index: 1,
-                variant: "Newtype",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::NewtypeVariant {
+            name: "EnumVariant",
+            variant_index: 1,
+            variant: "Newtype",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4685,17 +4524,16 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_u32_tuple() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::TupleVariant {
-                    name: "EnumVariant",
-                    variant_index: 2,
-                    variant: "Tuple",
-                    len: 0,
-                },
-                Token::TupleVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::TupleVariant {
+                name: "EnumVariant",
+                variant_index: 2,
+                variant: "Tuple",
+                len: 0,
+            },
+            Token::TupleVariantEnd,
+        ])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4708,17 +4546,16 @@ mod tests {
 
     #[test]
     fn enum_deserializer_deserialize_u32_struct() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![
-                Token::StructVariant {
-                    name: "EnumVariant",
-                    variant_index: 3,
-                    variant: "Struct",
-                    len: 0,
-                },
-                Token::StructVariantEnd,
-            ]))
-            .build();
+        let mut deserializer = Deserializer::builder([
+            Token::StructVariant {
+                name: "EnumVariant",
+                variant_index: 3,
+                variant: "Struct",
+                len: 0,
+            },
+            Token::StructVariantEnd,
+        ])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4732,9 +4569,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "internal error: entered unreachable code")]
     fn enum_deserializer_deserialize_u32_invalid_token() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::Bool(false)]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::Bool(false)]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4783,13 +4618,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4800,7 +4634,6 @@ mod tests {
         );
     }
 
-    #[cfg(has_i128)]
     #[test]
     fn enum_deserializer_deserialize_u128() {
         #[derive(Debug, PartialEq)]
@@ -4838,13 +4671,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4879,7 +4711,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4914,7 +4746,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4949,7 +4781,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -4996,13 +4828,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5049,13 +4880,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5090,7 +4920,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5125,7 +4955,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5160,7 +4990,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5195,7 +5025,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5230,7 +5060,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5265,7 +5095,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5300,7 +5130,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5335,7 +5165,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5370,7 +5200,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5405,7 +5235,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5440,7 +5270,7 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5487,13 +5317,12 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5540,14 +5369,13 @@ mod tests {
             }
         }
 
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(vec![Token::UnitVariant {
-                name: "EnumVariant",
-                variant_index: 0,
-                variant: "Foo",
-            }]))
-            .self_describing(true)
-            .build();
+        let mut deserializer = Deserializer::builder([Token::UnitVariant {
+            name: "EnumVariant",
+            variant_index: 0,
+            variant: "Foo",
+        }])
+        .self_describing(true)
+        .build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5560,7 +5388,7 @@ mod tests {
 
     #[test]
     fn enum_deserializer_is_human_readable_default() {
-        let mut deserializer = Deserializer::builder().tokens(Tokens(Vec::new())).build();
+        let mut deserializer = Deserializer::builder([]).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5570,10 +5398,7 @@ mod tests {
 
     #[test]
     fn enum_deserializer_is_human_readable_true() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(Vec::new()))
-            .is_human_readable(true)
-            .build();
+        let mut deserializer = Deserializer::builder([]).is_human_readable(true).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5583,10 +5408,7 @@ mod tests {
 
     #[test]
     fn enum_deserializer_is_human_readable_false() {
-        let mut deserializer = Deserializer::builder()
-            .tokens(Tokens(Vec::new()))
-            .is_human_readable(false)
-            .build();
+        let mut deserializer = Deserializer::builder([]).is_human_readable(false).build();
         let enum_deserializer = EnumDeserializer {
             deserializer: &mut deserializer,
         };
@@ -5602,7 +5424,7 @@ mod tests {
     #[test]
     fn display_error_expected_seq_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::SeqEnd)),
+            format!("{}", Error::ExpectedSeqEnd),
             "expected token SeqEnd"
         );
     }
@@ -5610,8 +5432,48 @@ mod tests {
     #[test]
     fn display_error_expected_tuple_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::TupleEnd)),
+            format!("{}", Error::ExpectedTupleEnd),
             "expected token TupleEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleStructEnd),
+            "expected token TupleStructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleVariantEnd),
+            "expected token TupleVariantEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_map_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedMapEnd),
+            "expected token MapEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructEnd),
+            "expected token StructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructVariantEnd),
+            "expected token StructVariantEnd"
         );
     }
 
@@ -5638,7 +5500,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_type((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid type: expected foo, found boolean `true`"
         );
@@ -5649,7 +5511,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_value((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_value((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid value: expected foo, found boolean `true`"
         );
@@ -5692,6 +5554,62 @@ mod tests {
         assert_eq!(
             format!("{}", Error::duplicate_field("foo")),
             "duplicate field foo"
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_seq() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Seq),
+            Error::ExpectedSeqEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Tuple),
+            Error::ExpectedTupleEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleStruct),
+            Error::ExpectedTupleStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleVariant),
+            Error::ExpectedTupleVariantEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_map() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Map),
+            Error::ExpectedMapEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Struct),
+            Error::ExpectedStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::StructVariant),
+            Error::ExpectedStructVariantEnd
         );
     }
 }
