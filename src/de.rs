@@ -3877,6 +3877,14 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_from_unordered_tokens() {
+        let mut deserializer =
+            Deserializer::builder([Token::Unordered(&[&[Token::Bool(true)]])]).build();
+
+        assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+    }
+
+    #[test]
     fn is_human_readable_default() {
         let mut deserializer = Deserializer::builder([]).build();
 

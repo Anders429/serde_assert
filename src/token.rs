@@ -1794,7 +1794,7 @@ mod tests {
     fn tokens_end_within_unordered() {
         assert_ne!(
             Tokens(vec![CanonicalToken::Unit,]),
-            [Token::Unordered(&[&[Token::Unit, ], &[Token::Unit]])]
+            [Token::Unordered(&[&[Token::Unit,], &[Token::Unit]])]
         );
     }
 
