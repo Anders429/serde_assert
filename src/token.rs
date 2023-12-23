@@ -1767,6 +1767,14 @@ mod tests {
     }
 
     #[test]
+    fn tokens_unordered_empty() {
+        assert_eq!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[]), Token::Unit]
+        );
+    }
+
+    #[test]
     fn token_from_canonical_token_bool() {
         assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true))
     }
