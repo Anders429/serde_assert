@@ -1245,6 +1245,31 @@ where
     // TODO: Want to remove the clone requirement, and just share the same base iterator for all
     // branching paths. Maybe there's a better way to structure this?
 
+    /// Splits along several possible paths in an unordered set of tokens, creating a new `State`
+    /// for each path.
+    ///
+    /// The other untraveled paths are aded into the `remaining` field of `StateContext::Unordered`
+    /// for future processing.
+    ///
+    /// This function also steps into each path using the `input` token.
+    fn split(self, paths: &[&'static [Token]], input: &CanonicalToken) -> Vec<Self> {
+        (0..paths.len())
+            .map(move |index| {
+                let mut new_state = self.clone();
+                new_state.0.push(StateContext::Unordered {
+                    current: paths[index].iter(),
+                    remaining: paths
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, tokens)| if i == index { None } else { Some(*tokens) })
+                        .collect(),
+                });
+                new_state
+            })
+            .flat_map(|state| state.feed(input))
+            .collect()
+    }
+
     /// Travels along all possible paths through `token`.
     ///
     /// This will branch if the next token is `Unordered`. In other cases, it just returns 0 or 1
@@ -1276,27 +1301,7 @@ where
                                     // the next token.
                                     self.feed(input)
                                 } else {
-                                    (0..unordered_tokens.len())
-                                        .map(|index| {
-                                            let mut new_state = self.clone();
-                                            new_state.0.push(StateContext::Unordered {
-                                                current: unordered_tokens[index].iter(),
-                                                remaining: unordered_tokens
-                                                    .iter()
-                                                    .enumerate()
-                                                    .filter_map(|(i, tokens)| {
-                                                        if i == index {
-                                                            None
-                                                        } else {
-                                                            Some(*tokens)
-                                                        }
-                                                    })
-                                                    .collect(),
-                                            });
-                                            new_state
-                                        })
-                                        .flat_map(|state| state.feed(input))
-                                        .collect()
+                                    self.split(unordered_tokens, input)
                                 }
                             }
                         }
@@ -1327,27 +1332,7 @@ where
                                     // the next token.
                                     self.feed(input)
                                 } else {
-                                    (0..unordered_tokens.len())
-                                        .map(|index| {
-                                            let mut new_state = self.clone();
-                                            new_state.0.push(StateContext::Unordered {
-                                                current: unordered_tokens[index].iter(),
-                                                remaining: unordered_tokens
-                                                    .iter()
-                                                    .enumerate()
-                                                    .filter_map(|(i, tokens)| {
-                                                        if i == index {
-                                                            None
-                                                        } else {
-                                                            Some(*tokens)
-                                                        }
-                                                    })
-                                                    .collect(),
-                                            });
-                                            new_state
-                                        })
-                                        .flat_map(|state| state.feed(input))
-                                        .collect()
+                                    self.split(unordered_tokens, input)
                                 }
                             }
                         }
@@ -1359,27 +1344,7 @@ where
                             self.feed(input)
                         } else {
                             // For each remaining, create a new state with it as the current.
-                            (0..remaining.len())
-                                .map(|index| {
-                                    let mut new_state = self.clone();
-                                    new_state.0.push(StateContext::Unordered {
-                                        current: remaining[index].iter(),
-                                        remaining: remaining
-                                            .iter()
-                                            .enumerate()
-                                            .filter_map(|(i, tokens)| {
-                                                if i == index {
-                                                    None
-                                                } else {
-                                                    Some(*tokens)
-                                                }
-                                            })
-                                            .collect(),
-                                    });
-                                    new_state
-                                })
-                                .flat_map(|state| state.feed(input))
-                                .collect()
+                            self.split(remaining.as_slice(), input)
                         }
                     }
                 }
