@@ -20,12 +20,19 @@
 
 use crate::{
     token,
-    token::Tokens,
+    token::{
+        CanonicalToken,
+        Tokens,
+        UnorderedTokens,
+    },
     Token,
 };
-use alloc::string::{
-    String,
-    ToString,
+use alloc::{
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
 };
 use core::{
     fmt,
@@ -81,9 +88,9 @@ use serde::{
 /// [`zero_copy()`]: Builder::zero_copy()
 #[derive(Debug)]
 pub struct Deserializer<'a> {
-    tokens: token::Iter<'a>,
+    tokens: token::OwningIter<'a>,
 
-    revisited_token: Option<&'a Token>,
+    revisited_token: Option<&'a CanonicalToken>,
 
     is_human_readable: bool,
     self_describing: bool,
@@ -102,95 +109,95 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
         let token = self.next_token()?;
         match token {
-            Token::Bool(v) => visitor.visit_bool(*v),
-            Token::I8(v) => visitor.visit_i8(*v),
-            Token::I16(v) => visitor.visit_i16(*v),
-            Token::I32(v) => visitor.visit_i32(*v),
-            Token::I64(v) => visitor.visit_i64(*v),
-            Token::I128(v) => visitor.visit_i128(*v),
-            Token::U8(v) => visitor.visit_u8(*v),
-            Token::U16(v) => visitor.visit_u16(*v),
-            Token::U32(v) => visitor.visit_u32(*v),
-            Token::U64(v) => visitor.visit_u64(*v),
-            Token::U128(v) => visitor.visit_u128(*v),
-            Token::F32(v) => visitor.visit_f32(*v),
-            Token::F64(v) => visitor.visit_f64(*v),
-            Token::Char(v) => visitor.visit_char(*v),
-            Token::Str(v) => visitor.visit_string(v.clone()),
-            Token::Bytes(v) => visitor.visit_byte_buf(v.clone()),
-            Token::None => visitor.visit_none(),
-            Token::Some => visitor.visit_some(self),
-            Token::Unit | Token::UnitStruct { .. } => visitor.visit_unit(),
-            Token::UnitVariant { .. }
-            | Token::NewtypeVariant { .. }
-            | Token::TupleVariant { .. }
-            | Token::StructVariant { .. } => {
+            CanonicalToken::Bool(v) => visitor.visit_bool(*v),
+            CanonicalToken::I8(v) => visitor.visit_i8(*v),
+            CanonicalToken::I16(v) => visitor.visit_i16(*v),
+            CanonicalToken::I32(v) => visitor.visit_i32(*v),
+            CanonicalToken::I64(v) => visitor.visit_i64(*v),
+            CanonicalToken::I128(v) => visitor.visit_i128(*v),
+            CanonicalToken::U8(v) => visitor.visit_u8(*v),
+            CanonicalToken::U16(v) => visitor.visit_u16(*v),
+            CanonicalToken::U32(v) => visitor.visit_u32(*v),
+            CanonicalToken::U64(v) => visitor.visit_u64(*v),
+            CanonicalToken::U128(v) => visitor.visit_u128(*v),
+            CanonicalToken::F32(v) => visitor.visit_f32(*v),
+            CanonicalToken::F64(v) => visitor.visit_f64(*v),
+            CanonicalToken::Char(v) => visitor.visit_char(*v),
+            CanonicalToken::Str(v) => visitor.visit_string(v.clone()),
+            CanonicalToken::Bytes(v) => visitor.visit_byte_buf(v.clone()),
+            CanonicalToken::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::Unit | CanonicalToken::UnitStruct { .. } => visitor.visit_unit(),
+            CanonicalToken::UnitVariant { .. }
+            | CanonicalToken::NewtypeVariant { .. }
+            | CanonicalToken::TupleVariant { .. }
+            | CanonicalToken::StructVariant { .. } => {
                 // `EnumDeserializer` takes care of the enum deserialization, which will consume
                 // this token later.
                 self.revisit_token(token);
                 visitor.visit_enum(EnumAccess { deserializer: self })
             }
-            Token::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
-            Token::Seq { len } => {
+            CanonicalToken::NewtypeStruct { .. } => visitor.visit_newtype_struct(self),
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Tuple { len } => {
+            CanonicalToken::Tuple { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::TupleStruct { name: _, len } => {
+            CanonicalToken::TupleStruct { name: _, len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Map { len } => {
+            CanonicalToken::Map { len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::MapEnd,
+                    end_token: EndToken::Map,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
                 access.assert_ended()?;
                 Ok(result)
             }
-            Token::Field(v) => visitor.visit_str(v),
-            Token::Struct { name: _, len } => {
+            CanonicalToken::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Struct { name: _, len } => {
                 let mut access = MapAccess {
                     deserializer: self,
 
                     len: Some(*len),
 
-                    end_token: Token::StructEnd,
+                    end_token: EndToken::Struct,
                     ended: false,
                 };
                 let result = visitor.visit_map(&mut access)?;
@@ -206,7 +213,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bool(v) = token {
+        if let CanonicalToken::Bool(v) = token {
             visitor.visit_bool(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -218,7 +225,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I8(v) = token {
+        if let CanonicalToken::I8(v) = token {
             visitor.visit_i8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -230,7 +237,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I16(v) = token {
+        if let CanonicalToken::I16(v) = token {
             visitor.visit_i16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -242,7 +249,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I32(v) = token {
+        if let CanonicalToken::I32(v) = token {
             visitor.visit_i32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -254,7 +261,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I64(v) = token {
+        if let CanonicalToken::I64(v) = token {
             visitor.visit_i64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -266,7 +273,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::I128(v) = token {
+        if let CanonicalToken::I128(v) = token {
             visitor.visit_i128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -278,7 +285,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U8(v) = token {
+        if let CanonicalToken::U8(v) = token {
             visitor.visit_u8(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -290,7 +297,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U16(v) = token {
+        if let CanonicalToken::U16(v) = token {
             visitor.visit_u16(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -302,7 +309,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U32(v) = token {
+        if let CanonicalToken::U32(v) = token {
             visitor.visit_u32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -314,7 +321,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U64(v) = token {
+        if let CanonicalToken::U64(v) = token {
             visitor.visit_u64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -326,7 +333,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::U128(v) = token {
+        if let CanonicalToken::U128(v) = token {
             visitor.visit_u128(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -338,7 +345,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F32(v) = token {
+        if let CanonicalToken::F32(v) = token {
             visitor.visit_f32(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -350,7 +357,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::F64(v) = token {
+        if let CanonicalToken::F64(v) = token {
             visitor.visit_f64(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -362,7 +369,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Char(v) = token {
+        if let CanonicalToken::Char(v) = token {
             visitor.visit_char(*v)
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -374,7 +381,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_str(v)
             } else {
@@ -390,7 +397,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Str(v) = token {
+        if let CanonicalToken::Str(v) = token {
             visitor.visit_string(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -402,7 +409,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             if self.zero_copy {
                 visitor.visit_borrowed_bytes(v)
             } else {
@@ -418,7 +425,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Bytes(v) = token {
+        if let CanonicalToken::Bytes(v) = token {
             visitor.visit_byte_buf(v.clone())
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -430,8 +437,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         match self.next_token()? {
-            Token::Some => visitor.visit_some(self),
-            Token::None => visitor.visit_none(),
+            CanonicalToken::Some => visitor.visit_some(self),
+            CanonicalToken::None => visitor.visit_none(),
             token => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -441,7 +448,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Unit = token {
+        if let CanonicalToken::Unit = token {
             visitor.visit_unit()
         } else {
             Err(Self::Error::invalid_type((token).into(), &visitor))
@@ -457,7 +464,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::UnitStruct { name: struct_name } = token {
+        if let CanonicalToken::UnitStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_unit()
             } else {
@@ -477,7 +484,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::NewtypeStruct { name: struct_name } = token {
+        if let CanonicalToken::NewtypeStruct { name: struct_name } = token {
             if name == *struct_name {
                 visitor.visit_newtype_struct(self)
             } else {
@@ -493,13 +500,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Seq { len } = token {
+        if let CanonicalToken::Seq { len } = token {
             let mut access = SeqAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::SeqEnd,
+                end_token: EndToken::Seq,
                 ended: false,
             };
             let result = visitor.visit_seq(&mut access)?;
@@ -515,14 +522,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Tuple { len: token_len } = token {
+        if let CanonicalToken::Tuple { len: token_len } = token {
             if len == *token_len {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: Some(len),
 
-                    end_token: Token::TupleEnd,
+                    end_token: EndToken::Tuple,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -546,7 +553,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::TupleStruct {
+        if let CanonicalToken::TupleStruct {
             name: token_name,
             len: token_len,
         } = token
@@ -561,7 +568,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                     len: Some(len),
 
-                    end_token: Token::TupleStructEnd,
+                    end_token: EndToken::TupleStruct,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -578,13 +585,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let token = self.next_token()?;
-        if let Token::Map { len } = token {
+        if let CanonicalToken::Map { len } = token {
             let mut access = MapAccess {
                 deserializer: self,
 
                 len: *len,
 
-                end_token: Token::MapEnd,
+                end_token: EndToken::Map,
                 ended: false,
             };
             let result = visitor.visit_map(&mut access)?;
@@ -607,7 +614,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let token = self.next_token()?;
 
         match token {
-            Token::Struct {
+            CanonicalToken::Struct {
                 name: token_name,
                 len,
             } => {
@@ -617,7 +624,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                         len: Some(*len),
 
-                        end_token: Token::StructEnd,
+                        end_token: EndToken::Struct,
                         ended: false,
                     };
                     let result = visitor.visit_map(&mut access)?;
@@ -627,13 +634,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     Err(Self::Error::invalid_value((token).into(), &visitor))
                 }
             }
-            Token::Seq { len } => {
+            CanonicalToken::Seq { len } => {
                 let mut access = SeqAccess {
                     deserializer: self,
 
                     len: *len,
 
-                    end_token: Token::SeqEnd,
+                    end_token: EndToken::Seq,
                     ended: false,
                 };
                 let result = visitor.visit_seq(&mut access)?;
@@ -655,16 +662,16 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::UnitVariant {
+            CanonicalToken::UnitVariant {
                 name: token_name, ..
             }
-            | Token::NewtypeVariant {
+            | CanonicalToken::NewtypeVariant {
                 name: token_name, ..
             }
-            | Token::TupleVariant {
+            | CanonicalToken::TupleVariant {
                 name: token_name, ..
             }
-            | Token::StructVariant {
+            | CanonicalToken::StructVariant {
                 name: token_name, ..
             } => {
                 if name == *token_name {
@@ -686,8 +693,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let token = self.next_token()?;
         match token {
-            Token::Str(v) => visitor.visit_str(v),
-            Token::Field(v) => visitor.visit_str(v),
+            CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
     }
@@ -713,7 +720,7 @@ impl<'a> Deserializer<'a> {
         Builder::new(tokens)
     }
 
-    fn next_token(&mut self) -> Result<&'a Token, Error> {
+    fn next_token(&mut self) -> Result<&'a CanonicalToken, Error> {
         loop {
             let token = self
                 .revisited_token
@@ -722,14 +729,40 @@ impl<'a> Deserializer<'a> {
                 .chain(&mut self.tokens)
                 .next()
                 .ok_or(Error::EndOfTokens)?;
-            if !matches!(token, Token::SkippedField(_)) {
+            if !matches!(token, CanonicalToken::SkippedField(_)) {
                 return Ok(token);
             }
         }
     }
 
-    fn revisit_token(&mut self, token: &'a Token) {
+    fn revisit_token(&mut self, token: &'a CanonicalToken) {
         self.revisited_token = Some(token);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum EndToken {
+    Seq,
+    Tuple,
+    TupleStruct,
+    TupleVariant,
+    Map,
+    Struct,
+    StructVariant,
+}
+
+impl PartialEq<EndToken> for CanonicalToken {
+    fn eq(&self, other: &EndToken) -> bool {
+        matches!(
+            (self, other),
+            (Self::SeqEnd, EndToken::Seq)
+                | (Self::TupleEnd, EndToken::Tuple)
+                | (Self::TupleStructEnd, EndToken::TupleStruct)
+                | (Self::TupleVariantEnd, EndToken::TupleVariant)
+                | (Self::MapEnd, EndToken::Map)
+                | (Self::StructEnd, EndToken::Struct)
+                | (Self::StructVariantEnd, EndToken::StructVariant)
+        )
     }
 }
 
@@ -738,7 +771,7 @@ struct SeqAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -769,7 +802,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
 impl SeqAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -781,7 +814,7 @@ struct MapAccess<'a, 'b> {
 
     len: Option<usize>,
 
-    end_token: Token,
+    end_token: EndToken,
     ended: bool,
 }
 
@@ -819,7 +852,7 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
 impl MapAccess<'_, '_> {
     fn assert_ended(&mut self) -> Result<(), Error> {
         if !self.ended && *self.deserializer.next_token()? != self.end_token {
-            return Err(Error::ExpectedToken(self.end_token.clone()));
+            return Err(Error::expected_end_token(self.end_token));
         }
         self.ended = true;
         Ok(())
@@ -877,7 +910,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: Some(len),
 
-            end_token: Token::TupleVariantEnd,
+            end_token: EndToken::TupleVariant,
             ended: false,
         })
     }
@@ -895,7 +928,7 @@ impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
 
             len: None,
 
-            end_token: Token::StructVariantEnd,
+            end_token: EndToken::StructVariant,
             ended: false,
         })
     }
@@ -917,10 +950,10 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant, .. }
-            | Token::TupleVariant { variant, .. }
-            | Token::NewtypeVariant { variant, .. }
-            | Token::StructVariant { variant, .. } => visitor.visit_str(variant),
+            CanonicalToken::UnitVariant { variant, .. }
+            | CanonicalToken::TupleVariant { variant, .. }
+            | CanonicalToken::NewtypeVariant { variant, .. }
+            | CanonicalToken::StructVariant { variant, .. } => visitor.visit_str(variant),
             _ => unreachable!(),
         }
     }
@@ -986,10 +1019,12 @@ impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
         V: de::Visitor<'de>,
     {
         match self.deserializer.next_token()? {
-            Token::UnitVariant { variant_index, .. }
-            | Token::TupleVariant { variant_index, .. }
-            | Token::NewtypeVariant { variant_index, .. }
-            | Token::StructVariant { variant_index, .. } => visitor.visit_u32(*variant_index),
+            CanonicalToken::UnitVariant { variant_index, .. }
+            | CanonicalToken::TupleVariant { variant_index, .. }
+            | CanonicalToken::NewtypeVariant { variant_index, .. }
+            | CanonicalToken::StructVariant { variant_index, .. } => {
+                visitor.visit_u32(*variant_index)
+            }
             _ => unreachable!(),
         }
     }
@@ -1204,8 +1239,29 @@ impl Builder {
     where
         T: IntoIterator<Item = Token>,
     {
+        fn collect_canonical<I>(tokens: &mut Vec<CanonicalToken>, iter: I)
+        where
+            I: Iterator<Item = Token>,
+        {
+            for token in iter {
+                match token.try_into() {
+                    Ok(canonical_token) => tokens.push(canonical_token),
+                    Err(UnorderedTokens(unordered_tokens)) => {
+                        collect_canonical(
+                            tokens,
+                            unordered_tokens.iter().copied().flatten().cloned(),
+                        );
+                    }
+                }
+            }
+        }
+
         Self {
-            tokens: Tokens(tokens.into_iter().collect()),
+            tokens: {
+                let mut canonical_tokens = Vec::new();
+                collect_canonical(&mut canonical_tokens, tokens.into_iter());
+                Tokens(canonical_tokens)
+            },
 
             is_human_readable: true,
             self_describing: false,
@@ -1305,7 +1361,7 @@ impl Builder {
     #[must_use]
     pub fn build<'a>(&self) -> Deserializer<'a> {
         Deserializer {
-            tokens: token::Iter::new(self.tokens.clone()),
+            tokens: token::OwningIter::new(self.tokens.clone()),
 
             revisited_token: None,
 
@@ -1334,8 +1390,21 @@ pub enum Error {
     /// completed.
     EndOfTokens,
 
-    /// Expected the given token, but encountered a different token instead.
-    ExpectedToken(Token),
+    /// Expected a `Token::SeqEnd`.
+    ExpectedSeqEnd,
+    /// Expected a `Token::TupleEnd`.
+    ExpectedTupleEnd,
+    /// Expected a `Token::TupleStructEnd`.
+    ExpectedTupleStructEnd,
+    /// Expected a `Token::TupleVariantEnd`.
+    ExpectedTupleVariantEnd,
+    /// Expected a `Token::MapEnd`.
+    ExpectedMapEnd,
+    /// Expected a `Token::StructEnd`.
+    ExpectedStructEnd,
+    /// Expected a `Token::StructVariantEnd`.
+    ExpectedStructVariantEnd,
+
     /// An unsupported [`serde::Deserializer`] method was called during deserialization of an
     /// `enum` variant.
     ///
@@ -1384,11 +1453,31 @@ pub enum Error {
     DuplicateField(&'static str),
 }
 
+impl Error {
+    fn expected_end_token(end_token: EndToken) -> Self {
+        match end_token {
+            EndToken::Seq => Self::ExpectedSeqEnd,
+            EndToken::Tuple => Self::ExpectedTupleEnd,
+            EndToken::TupleStruct => Self::ExpectedTupleStructEnd,
+            EndToken::TupleVariant => Self::ExpectedTupleVariantEnd,
+            EndToken::Map => Self::ExpectedMapEnd,
+            EndToken::Struct => Self::ExpectedStructEnd,
+            EndToken::StructVariant => Self::ExpectedStructVariantEnd,
+        }
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EndOfTokens => f.write_str("end of tokens"),
-            Self::ExpectedToken(token) => write!(f, "expected token {token}"),
+            Self::ExpectedSeqEnd => f.write_str("expected token SeqEnd"),
+            Self::ExpectedTupleEnd => f.write_str("expected token TupleEnd"),
+            Self::ExpectedTupleStructEnd => f.write_str("expected token TupleStructEnd"),
+            Self::ExpectedTupleVariantEnd => f.write_str("expected token TupleVariantEnd"),
+            Self::ExpectedMapEnd => f.write_str("expected token MapEnd"),
+            Self::ExpectedStructEnd => f.write_str("expected token StructEnd"),
+            Self::ExpectedStructVariantEnd => f.write_str("expected token StructVariantEnd"),
             Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
@@ -1449,7 +1538,10 @@ mod tests {
         EnumDeserializer,
         Error,
     };
-    use crate::Token;
+    use crate::{
+        token::CanonicalToken,
+        Token,
+    };
     use alloc::{
         borrow::ToOwned,
         fmt,
@@ -2241,7 +2333,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::SeqEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::SeqEnd).into(), &"struct Any"),
         );
     }
 
@@ -2253,7 +2345,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleEnd).into(), &"struct Any"),
         );
     }
 
@@ -2265,7 +2357,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleStructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleStructEnd).into(), &"struct Any"),
         );
     }
 
@@ -2277,7 +2369,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::TupleVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::TupleVariantEnd).into(), &"struct Any"),
         );
     }
 
@@ -2289,7 +2381,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::MapEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::MapEnd).into(), &"struct Any"),
         );
     }
 
@@ -2301,7 +2393,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructEnd).into(), &"struct Any"),
         );
     }
 
@@ -2313,7 +2405,7 @@ mod tests {
 
         assert_err_eq!(
             Any::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::StructVariantEnd).into(), &"struct Any"),
+            Error::invalid_type((&CanonicalToken::StructVariantEnd).into(), &"struct Any"),
         );
     }
 
@@ -2352,7 +2444,7 @@ mod tests {
 
         assert_err_eq!(
             bool::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::I8(42)).into(), &"a boolean")
+            Error::invalid_type((&CanonicalToken::I8(42)).into(), &"a boolean")
         );
     }
 
@@ -2369,7 +2461,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i8")
         );
     }
 
@@ -2386,7 +2478,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i16")
         );
     }
 
@@ -2403,7 +2495,7 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i32")
         );
     }
 
@@ -2420,7 +2512,7 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i64")
         );
     }
 
@@ -2437,7 +2529,7 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"i128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"i128")
         );
     }
 
@@ -2454,7 +2546,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u8")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u8")
         );
     }
 
@@ -2471,7 +2563,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u16")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u16")
         );
     }
 
@@ -2488,7 +2580,7 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u32")
         );
     }
 
@@ -2505,7 +2597,7 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u64")
         );
     }
 
@@ -2522,7 +2614,7 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"u128")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"u128")
         );
     }
 
@@ -2539,7 +2631,7 @@ mod tests {
 
         assert_err_eq!(
             f32::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f32")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f32")
         );
     }
 
@@ -2556,7 +2648,7 @@ mod tests {
 
         assert_err_eq!(
             f64::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"f64")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"f64")
         );
     }
 
@@ -2573,7 +2665,7 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a character")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a character")
         );
     }
 
@@ -2628,7 +2720,7 @@ mod tests {
 
         assert_err_eq!(
             Str::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"str")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"str")
         );
     }
 
@@ -2679,7 +2771,10 @@ mod tests {
 
         assert_err_eq!(
             BorrowedStr::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Str("foo".to_owned())).into(), &"a borrowed str")
+            Error::invalid_type(
+                (&CanonicalToken::Str("foo".to_owned())).into(),
+                &"a borrowed str"
+            )
         );
     }
 
@@ -2696,7 +2791,7 @@ mod tests {
 
         assert_err_eq!(
             String::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a string")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a string")
         );
     }
 
@@ -2757,7 +2852,7 @@ mod tests {
 
         assert_err_eq!(
             Bytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"bytes")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"bytes")
         );
     }
 
@@ -2808,7 +2903,10 @@ mod tests {
 
         assert_err_eq!(
             BorrowedBytes::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bytes(b"foo".to_vec())).into(), &"borrowed bytes")
+            Error::invalid_type(
+                (&CanonicalToken::Bytes(b"foo".to_vec())).into(),
+                &"borrowed bytes"
+            )
         );
     }
 
@@ -2828,7 +2926,7 @@ mod tests {
 
         assert_err_eq!(
             ByteBuf::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"byte array")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"byte array")
         );
     }
 
@@ -2852,7 +2950,7 @@ mod tests {
 
         assert_err_eq!(
             Option::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"option")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"option")
         );
     }
 
@@ -2869,7 +2967,7 @@ mod tests {
 
         assert_err_eq!(
             <()>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit")
         );
     }
 
@@ -2917,7 +3015,7 @@ mod tests {
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitStruct { name: "Not Unit" }).into(),
+                (&CanonicalToken::UnitStruct { name: "Not Unit" }).into(),
                 &"unit struct"
             )
         );
@@ -2929,7 +3027,7 @@ mod tests {
 
         assert_err_eq!(
             Unit::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"unit struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"unit struct")
         );
     }
 
@@ -2984,7 +3082,7 @@ mod tests {
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeStruct {
+                (&CanonicalToken::NewtypeStruct {
                     name: "Not Newtype"
                 })
                     .into(),
@@ -2999,7 +3097,7 @@ mod tests {
 
         assert_err_eq!(
             Newtype::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"newtype struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"newtype struct")
         );
     }
 
@@ -3023,7 +3121,7 @@ mod tests {
 
         assert_err_eq!(
             Vec::<u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a sequence")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a sequence")
         );
     }
 
@@ -3109,7 +3207,7 @@ mod tests {
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a tuple of size 3")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a tuple of size 3")
         );
     }
 
@@ -3127,7 +3225,7 @@ mod tests {
 
         assert_err_eq!(
             <(u32, u32, u32)>::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::TupleEnd)
+            Error::ExpectedTupleEnd
         );
     }
 
@@ -3204,7 +3302,7 @@ mod tests {
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleStruct {
+                (&CanonicalToken::TupleStruct {
                     name: "Not TupleStruct",
                     len: 3
                 })
@@ -3240,7 +3338,7 @@ mod tests {
 
         assert_err_eq!(
             TupleStruct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"TupleStruct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"TupleStruct")
         );
     }
 
@@ -3273,7 +3371,7 @@ mod tests {
 
         assert_err_eq!(
             HashMap::<char, u32>::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"a map")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"a map")
         );
     }
 
@@ -3325,7 +3423,7 @@ mod tests {
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::Struct {
+                (&CanonicalToken::Struct {
                     name: "Not Struct",
                     len: 2
                 })
@@ -3341,7 +3439,7 @@ mod tests {
 
         assert_err_eq!(
             Struct::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"struct Struct")
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"struct Struct")
         );
     }
 
@@ -3401,7 +3499,7 @@ mod tests {
 
         assert_err_eq!(
             EmptyStruct::deserialize(&mut deserializer),
-            Error::ExpectedToken(Token::StructEnd),
+            Error::ExpectedStructEnd,
         );
     }
 
@@ -3510,7 +3608,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::UnitVariant {
+                (&CanonicalToken::UnitVariant {
                     name: "Not Enum",
                     variant_index: 0,
                     variant: "Unit",
@@ -3551,7 +3649,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::NewtypeVariant {
+                (&CanonicalToken::NewtypeVariant {
                     name: "Not Enum",
                     variant_index: 1,
                     variant: "Newtype",
@@ -3600,7 +3698,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::TupleVariant {
+                (&CanonicalToken::TupleVariant {
                     name: "Not Enum",
                     variant_index: 2,
                     variant: "Tuple",
@@ -3658,7 +3756,7 @@ mod tests {
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
             Error::invalid_value(
-                (&Token::StructVariant {
+                (&CanonicalToken::StructVariant {
                     name: "Not Enum",
                     variant_index: 3,
                     variant: "Struct",
@@ -3676,7 +3774,7 @@ mod tests {
 
         assert_err_eq!(
             Enum::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(true)).into(), &"enum Enum"),
+            Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"enum Enum"),
         );
     }
 
@@ -3735,7 +3833,7 @@ mod tests {
 
         assert_err_eq!(
             Identifier::deserialize(&mut deserializer),
-            Error::invalid_type((&Token::Bool(false)).into(), &"identifier")
+            Error::invalid_type((&CanonicalToken::Bool(false)).into(), &"identifier")
         );
     }
 
@@ -3774,6 +3872,14 @@ mod tests {
     fn deserialize_skips_skipped_field() {
         let mut deserializer =
             Deserializer::builder([Token::SkippedField("foo"), Token::Bool(true)]).build();
+
+        assert_ok_eq!(bool::deserialize(&mut deserializer), true);
+    }
+
+    #[test]
+    fn deserialize_from_unordered_tokens() {
+        let mut deserializer =
+            Deserializer::builder([Token::Unordered(&[&[Token::Bool(true)]])]).build();
 
         assert_ok_eq!(bool::deserialize(&mut deserializer), true);
     }
@@ -5318,7 +5424,7 @@ mod tests {
     #[test]
     fn display_error_expected_seq_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::SeqEnd)),
+            format!("{}", Error::ExpectedSeqEnd),
             "expected token SeqEnd"
         );
     }
@@ -5326,8 +5432,48 @@ mod tests {
     #[test]
     fn display_error_expected_tuple_end() {
         assert_eq!(
-            format!("{}", Error::ExpectedToken(Token::TupleEnd)),
+            format!("{}", Error::ExpectedTupleEnd),
             "expected token TupleEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleStructEnd),
+            "expected token TupleStructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_tuple_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedTupleVariantEnd),
+            "expected token TupleVariantEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_map_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedMapEnd),
+            "expected token MapEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructEnd),
+            "expected token StructEnd"
+        );
+    }
+
+    #[test]
+    fn display_error_expected_struct_variant_end() {
+        assert_eq!(
+            format!("{}", Error::ExpectedStructVariantEnd),
+            "expected token StructVariantEnd"
         );
     }
 
@@ -5354,7 +5500,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_type((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_type((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid type: expected foo, found boolean `true`"
         );
@@ -5365,7 +5511,7 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
-                Error::invalid_value((&Token::Bool(true)).into(), &"foo")
+                Error::invalid_value((&CanonicalToken::Bool(true)).into(), &"foo")
             ),
             "invalid value: expected foo, found boolean `true`"
         );
@@ -5408,6 +5554,62 @@ mod tests {
         assert_eq!(
             format!("{}", Error::duplicate_field("foo")),
             "duplicate field foo"
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_seq() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Seq),
+            Error::ExpectedSeqEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Tuple),
+            Error::ExpectedTupleEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleStruct),
+            Error::ExpectedTupleStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleVariant),
+            Error::ExpectedTupleVariantEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_map() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Map),
+            Error::ExpectedMapEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Struct),
+            Error::ExpectedStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::StructVariant),
+            Error::ExpectedStructVariantEnd
         );
     }
 }

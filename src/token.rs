@@ -15,16 +15,11 @@ use alloc::{
 };
 use core::{
     fmt,
-    fmt::{
-        Debug,
-        Display,
-    },
-    iter,
+    fmt::Debug,
     marker::PhantomData,
     mem::ManuallyDrop,
     ptr::NonNull,
 };
-use hashbrown::HashSet;
 use serde::de::Unexpected;
 
 /// A single serialized value.
@@ -835,9 +830,6 @@ pub enum Token {
     /// equality of [`Tokens`]. In other words, the outer slice is unordered, while the inner
     /// slices are all ordered.
     ///
-    /// Note that comparing equality of nested `Unordered` tokens is not currently supported, and
-    /// may give bogus results.
-    ///
     /// # Example
     /// ``` rust
     /// use claims::assert_ok_eq;
@@ -869,199 +861,299 @@ pub enum Token {
     /// );
     /// ```
     ///
-    /// [`HashSet`]: hashbrown::HashSet
+    /// [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
     /// [`Serializer`]: crate::Serializer
     Unordered(&'static [&'static [Token]]),
 }
 
-impl PartialEq for Token {
-    #[allow(clippy::too_many_lines)] // The large amount of lines comes from the large amount of variants.
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Token::Bool(a), Token::Bool(b)) => a == b,
-            (Token::I8(a), Token::I8(b)) => a == b,
-            (Token::I16(a), Token::I16(b)) => a == b,
-            (Token::I32(a), Token::I32(b)) => a == b,
-            (Token::I64(a), Token::I64(b)) => a == b,
-            (Token::I128(a), Token::I128(b)) => a == b,
-            (Token::U8(a), Token::U8(b)) => a == b,
-            (Token::U16(a), Token::U16(b)) => a == b,
-            (Token::U32(a), Token::U32(b)) => a == b,
-            (Token::U64(a), Token::U64(b)) => a == b,
-            (Token::U128(a), Token::U128(b)) => a == b,
-            (Token::F32(a), Token::F32(b)) => a == b,
-            (Token::F64(a), Token::F64(b)) => a == b,
-            (Token::Char(a), Token::Char(b)) => a == b,
-            (Token::Str(a), Token::Str(b)) => a == b,
-            (Token::Bytes(a), Token::Bytes(b)) => a == b,
-            (Token::None, Token::None)
-            | (Token::Some, Token::Some)
-            | (Token::Unit, Token::Unit)
-            | (Token::SeqEnd, Token::SeqEnd)
-            | (Token::TupleEnd, Token::TupleEnd)
-            | (Token::TupleStructEnd, Token::TupleStructEnd)
-            | (Token::TupleVariantEnd, Token::TupleVariantEnd)
-            | (Token::MapEnd, Token::MapEnd)
-            | (Token::StructEnd, Token::StructEnd)
-            | (Token::StructVariantEnd, Token::StructVariantEnd) => true,
-            (Token::UnitStruct { name: name_a }, Token::UnitStruct { name: name_b })
-            | (Token::NewtypeStruct { name: name_a }, Token::NewtypeStruct { name: name_b }) => {
-                name_a == name_b
-            }
-            (
-                Token::UnitVariant {
-                    name: name_a,
-                    variant_index: variant_index_a,
-                    variant: variant_a,
-                },
-                Token::UnitVariant {
-                    name: name_b,
-                    variant_index: variant_index_b,
-                    variant: variant_b,
-                },
-            )
-            | (
-                Token::NewtypeVariant {
-                    name: name_a,
-                    variant_index: variant_index_a,
-                    variant: variant_a,
-                },
-                Token::NewtypeVariant {
-                    name: name_b,
-                    variant_index: variant_index_b,
-                    variant: variant_b,
-                },
-            ) => name_a == name_b && variant_index_a == variant_index_b && variant_a == variant_b,
-            (Token::Seq { len: len_a }, Token::Seq { len: len_b })
-            | (Token::Map { len: len_a }, Token::Map { len: len_b }) => len_a == len_b,
-            (Token::Tuple { len: len_a }, Token::Tuple { len: len_b }) => len_a == len_b,
-            (
-                Token::TupleStruct {
-                    name: name_a,
-                    len: len_a,
-                },
-                Token::TupleStruct {
-                    name: name_b,
-                    len: len_b,
-                },
-            )
-            | (
-                Token::Struct {
-                    name: name_a,
-                    len: len_a,
-                },
-                Token::Struct {
-                    name: name_b,
-                    len: len_b,
-                },
-            ) => name_a == name_b && len_a == len_b,
-            (
-                Token::TupleVariant {
-                    name: name_a,
-                    variant_index: variant_index_a,
-                    variant: variant_a,
-                    len: len_a,
-                },
-                Token::TupleVariant {
-                    name: name_b,
-                    variant_index: variant_index_b,
-                    variant: variant_b,
-                    len: len_b,
-                },
-            )
-            | (
-                Token::StructVariant {
-                    name: name_a,
-                    variant_index: variant_index_a,
-                    variant: variant_a,
-                    len: len_a,
-                },
-                Token::StructVariant {
-                    name: name_b,
-                    variant_index: variant_index_b,
-                    variant: variant_b,
-                    len: len_b,
-                },
-            ) => {
-                name_a == name_b
-                    && variant_index_a == variant_index_b
-                    && variant_a == variant_b
-                    && len_a == len_b
-            }
-            (Token::Field(a), Token::Field(b))
-            | (Token::SkippedField(a), Token::SkippedField(b)) => a == b,
-            (Token::Unordered(tokens_a), Token::Unordered(tokens_b)) => {
-                if tokens_a.len() != tokens_b.len() {
-                    return false;
-                }
+/// An enumeration of all tokens that can be emitted by the [`Serializer`].
+///
+/// [`Serializer`]: crate::Serializer
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum CanonicalToken {
+    Bool(bool),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    I128(i128),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    U128(u128),
+    F32(f32),
+    F64(f64),
+    Char(char),
+    Str(String),
+    Bytes(Vec<u8>),
+    None,
+    Some,
+    Unit,
+    UnitStruct {
+        name: &'static str,
+    },
+    UnitVariant {
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+    },
+    NewtypeStruct {
+        name: &'static str,
+    },
+    NewtypeVariant {
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+    },
+    Seq {
+        len: Option<usize>,
+    },
+    SeqEnd,
+    Tuple {
+        len: usize,
+    },
+    TupleEnd,
+    TupleStruct {
+        name: &'static str,
+        len: usize,
+    },
+    TupleStructEnd,
+    TupleVariant {
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    },
+    TupleVariantEnd,
+    Map {
+        len: Option<usize>,
+    },
+    MapEnd,
+    Field(&'static str),
+    SkippedField(&'static str),
+    Struct {
+        name: &'static str,
+        len: usize,
+    },
+    StructEnd,
+    StructVariant {
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    },
+    StructVariantEnd,
+}
 
-                let mut consumed = HashSet::new();
-                'outer: for tokens in *tokens_a {
-                    for (i, other_tokens) in tokens_b
-                        .iter()
-                        .enumerate()
-                        .filter(|(i, _)| !consumed.contains(i))
-                    {
-                        if tokens == other_tokens {
-                            consumed.insert(i);
-                            continue 'outer;
-                        }
-                    }
-                    return false;
-                }
-                true
-            }
-            _ => false,
+pub(crate) struct UnorderedTokens(pub(crate) &'static [&'static [Token]]);
+
+impl TryFrom<Token> for CanonicalToken {
+    type Error = UnorderedTokens;
+
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        match token {
+            Token::Bool(value) => Ok(CanonicalToken::Bool(value)),
+            Token::I8(value) => Ok(CanonicalToken::I8(value)),
+            Token::I16(value) => Ok(CanonicalToken::I16(value)),
+            Token::I32(value) => Ok(CanonicalToken::I32(value)),
+            Token::I64(value) => Ok(CanonicalToken::I64(value)),
+            Token::I128(value) => Ok(CanonicalToken::I128(value)),
+            Token::U8(value) => Ok(CanonicalToken::U8(value)),
+            Token::U16(value) => Ok(CanonicalToken::U16(value)),
+            Token::U32(value) => Ok(CanonicalToken::U32(value)),
+            Token::U64(value) => Ok(CanonicalToken::U64(value)),
+            Token::U128(value) => Ok(CanonicalToken::U128(value)),
+            Token::F32(value) => Ok(CanonicalToken::F32(value)),
+            Token::F64(value) => Ok(CanonicalToken::F64(value)),
+            Token::Char(value) => Ok(CanonicalToken::Char(value)),
+            Token::Str(value) => Ok(CanonicalToken::Str(value)),
+            Token::Bytes(value) => Ok(CanonicalToken::Bytes(value)),
+            Token::None => Ok(CanonicalToken::None),
+            Token::Some => Ok(CanonicalToken::Some),
+            Token::Unit => Ok(CanonicalToken::Unit),
+            Token::UnitStruct { name } => Ok(CanonicalToken::UnitStruct { name }),
+            Token::UnitVariant {
+                name,
+                variant_index,
+                variant,
+            } => Ok(CanonicalToken::UnitVariant {
+                name,
+                variant_index,
+                variant,
+            }),
+            Token::NewtypeStruct { name } => Ok(CanonicalToken::NewtypeStruct { name }),
+            Token::NewtypeVariant {
+                name,
+                variant_index,
+                variant,
+            } => Ok(CanonicalToken::NewtypeVariant {
+                name,
+                variant_index,
+                variant,
+            }),
+            Token::Seq { len } => Ok(CanonicalToken::Seq { len }),
+            Token::SeqEnd => Ok(CanonicalToken::SeqEnd),
+            Token::Tuple { len } => Ok(CanonicalToken::Tuple { len }),
+            Token::TupleEnd => Ok(CanonicalToken::TupleEnd),
+            Token::TupleStruct { name, len } => Ok(CanonicalToken::TupleStruct { name, len }),
+            Token::TupleStructEnd => Ok(CanonicalToken::TupleStructEnd),
+            Token::TupleVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            } => Ok(CanonicalToken::TupleVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            }),
+            Token::TupleVariantEnd => Ok(CanonicalToken::TupleVariantEnd),
+            Token::Map { len } => Ok(CanonicalToken::Map { len }),
+            Token::MapEnd => Ok(CanonicalToken::MapEnd),
+            Token::Field(value) => Ok(CanonicalToken::Field(value)),
+            Token::SkippedField(value) => Ok(CanonicalToken::SkippedField(value)),
+            Token::Struct { name, len } => Ok(CanonicalToken::Struct { name, len }),
+            Token::StructEnd => Ok(CanonicalToken::StructEnd),
+            Token::StructVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            } => Ok(CanonicalToken::StructVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            }),
+            Token::StructVariantEnd => Ok(CanonicalToken::StructVariantEnd),
+            Token::Unordered(tokens) => Err(UnorderedTokens(tokens)),
         }
     }
 }
 
-impl Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{self:?}")
+impl From<CanonicalToken> for Token {
+    fn from(token: CanonicalToken) -> Self {
+        match token {
+            CanonicalToken::Bool(value) => Token::Bool(value),
+            CanonicalToken::I8(value) => Token::I8(value),
+            CanonicalToken::I16(value) => Token::I16(value),
+            CanonicalToken::I32(value) => Token::I32(value),
+            CanonicalToken::I64(value) => Token::I64(value),
+            CanonicalToken::I128(value) => Token::I128(value),
+            CanonicalToken::U8(value) => Token::U8(value),
+            CanonicalToken::U16(value) => Token::U16(value),
+            CanonicalToken::U32(value) => Token::U32(value),
+            CanonicalToken::U64(value) => Token::U64(value),
+            CanonicalToken::U128(value) => Token::U128(value),
+            CanonicalToken::F32(value) => Token::F32(value),
+            CanonicalToken::F64(value) => Token::F64(value),
+            CanonicalToken::Char(value) => Token::Char(value),
+            CanonicalToken::Str(value) => Token::Str(value),
+            CanonicalToken::Bytes(value) => Token::Bytes(value),
+            CanonicalToken::None => Token::None,
+            CanonicalToken::Some => Token::Some,
+            CanonicalToken::Unit => Token::Unit,
+            CanonicalToken::UnitStruct { name } => Token::UnitStruct { name },
+            CanonicalToken::UnitVariant {
+                name,
+                variant_index,
+                variant,
+            } => Token::UnitVariant {
+                name,
+                variant_index,
+                variant,
+            },
+            CanonicalToken::NewtypeStruct { name } => Token::NewtypeStruct { name },
+            CanonicalToken::NewtypeVariant {
+                name,
+                variant_index,
+                variant,
+            } => Token::NewtypeVariant {
+                name,
+                variant_index,
+                variant,
+            },
+            CanonicalToken::Seq { len } => Token::Seq { len },
+            CanonicalToken::SeqEnd => Token::SeqEnd,
+            CanonicalToken::Tuple { len } => Token::Tuple { len },
+            CanonicalToken::TupleEnd => Token::TupleEnd,
+            CanonicalToken::TupleStruct { name, len } => Token::TupleStruct { name, len },
+            CanonicalToken::TupleStructEnd => Token::TupleStructEnd,
+            CanonicalToken::TupleVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            } => Token::TupleVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            },
+            CanonicalToken::TupleVariantEnd => Token::TupleVariantEnd,
+            CanonicalToken::Map { len } => Token::Map { len },
+            CanonicalToken::MapEnd => Token::MapEnd,
+            CanonicalToken::Field(value) => Token::Field(value),
+            CanonicalToken::SkippedField(value) => Token::SkippedField(value),
+            CanonicalToken::Struct { name, len } => Token::Struct { name, len },
+            CanonicalToken::StructEnd => Token::StructEnd,
+            CanonicalToken::StructVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            } => Token::StructVariant {
+                name,
+                variant_index,
+                variant,
+                len,
+            },
+            CanonicalToken::StructVariantEnd => Token::StructVariantEnd,
+        }
     }
 }
 
-impl<'a> From<&'a Token> for Unexpected<'a> {
-    fn from(token: &'a Token) -> Self {
+impl<'a> From<&'a CanonicalToken> for Unexpected<'a> {
+    fn from(token: &'a CanonicalToken) -> Self {
         match token {
-            Token::Bool(v) => Unexpected::Bool(*v),
-            Token::I8(v) => Unexpected::Signed((*v).into()),
-            Token::I16(v) => Unexpected::Signed((*v).into()),
-            Token::I32(v) => Unexpected::Signed((*v).into()),
-            Token::I64(v) => Unexpected::Signed(*v),
-            Token::I128(..) => Unexpected::Other("i128"),
-            Token::U8(v) => Unexpected::Unsigned((*v).into()),
-            Token::U16(v) => Unexpected::Unsigned((*v).into()),
-            Token::U32(v) => Unexpected::Unsigned((*v).into()),
-            Token::U64(v) => Unexpected::Unsigned(*v),
-            Token::U128(..) => Unexpected::Other("u128"),
-            Token::F32(v) => Unexpected::Float((*v).into()),
-            Token::F64(v) => Unexpected::Float(*v),
-            Token::Char(v) => Unexpected::Char(*v),
-            Token::Str(v) => Unexpected::Str(v),
-            Token::Bytes(v) => Unexpected::Bytes(v),
-            Token::Some | Token::None => Unexpected::Option,
-            Token::Unit | Token::UnitStruct { .. } => Unexpected::Unit,
-            Token::UnitVariant { .. } => Unexpected::UnitVariant,
-            Token::NewtypeStruct { .. } => Unexpected::NewtypeStruct,
-            Token::NewtypeVariant { .. } => Unexpected::NewtypeVariant,
-            Token::Seq { .. } | Token::Tuple { .. } => Unexpected::Seq,
-            Token::SeqEnd => Unexpected::Other("SeqEnd"),
-            Token::TupleEnd => Unexpected::Other("TupleEnd"),
-            Token::TupleStruct { .. } => Unexpected::Other("TupleStruct"),
-            Token::TupleStructEnd => Unexpected::Other("TupleStructEnd"),
-            Token::TupleVariant { .. } => Unexpected::TupleVariant,
-            Token::TupleVariantEnd => Unexpected::Other("TupleVariantEnd"),
-            Token::Map { .. } => Unexpected::Map,
-            Token::MapEnd => Unexpected::Other("MapEnd"),
-            Token::Field(..) => Unexpected::Other("Field"),
-            Token::SkippedField(..) => Unexpected::Other("SkippedField"),
-            Token::Struct { .. } => Unexpected::Other("Struct"),
-            Token::StructEnd => Unexpected::Other("StructEnd"),
-            Token::StructVariant { .. } => Unexpected::StructVariant,
-            Token::StructVariantEnd => Unexpected::Other("StructVariantEnd"),
-            Token::Unordered(..) => Unexpected::Other("unordered tokens"),
+            CanonicalToken::Bool(v) => Unexpected::Bool(*v),
+            CanonicalToken::I8(v) => Unexpected::Signed((*v).into()),
+            CanonicalToken::I16(v) => Unexpected::Signed((*v).into()),
+            CanonicalToken::I32(v) => Unexpected::Signed((*v).into()),
+            CanonicalToken::I64(v) => Unexpected::Signed(*v),
+            CanonicalToken::I128(..) => Unexpected::Other("i128"),
+            CanonicalToken::U8(v) => Unexpected::Unsigned((*v).into()),
+            CanonicalToken::U16(v) => Unexpected::Unsigned((*v).into()),
+            CanonicalToken::U32(v) => Unexpected::Unsigned((*v).into()),
+            CanonicalToken::U64(v) => Unexpected::Unsigned(*v),
+            CanonicalToken::U128(..) => Unexpected::Other("u128"),
+            CanonicalToken::F32(v) => Unexpected::Float((*v).into()),
+            CanonicalToken::F64(v) => Unexpected::Float(*v),
+            CanonicalToken::Char(v) => Unexpected::Char(*v),
+            CanonicalToken::Str(v) => Unexpected::Str(v),
+            CanonicalToken::Bytes(v) => Unexpected::Bytes(v),
+            CanonicalToken::Some | CanonicalToken::None => Unexpected::Option,
+            CanonicalToken::Unit | CanonicalToken::UnitStruct { .. } => Unexpected::Unit,
+            CanonicalToken::UnitVariant { .. } => Unexpected::UnitVariant,
+            CanonicalToken::NewtypeStruct { .. } => Unexpected::NewtypeStruct,
+            CanonicalToken::NewtypeVariant { .. } => Unexpected::NewtypeVariant,
+            CanonicalToken::Seq { .. } | CanonicalToken::Tuple { .. } => Unexpected::Seq,
+            CanonicalToken::SeqEnd => Unexpected::Other("SeqEnd"),
+            CanonicalToken::TupleEnd => Unexpected::Other("TupleEnd"),
+            CanonicalToken::TupleStruct { .. } => Unexpected::Other("TupleStruct"),
+            CanonicalToken::TupleStructEnd => Unexpected::Other("TupleStructEnd"),
+            CanonicalToken::TupleVariant { .. } => Unexpected::TupleVariant,
+            CanonicalToken::TupleVariantEnd => Unexpected::Other("TupleVariantEnd"),
+            CanonicalToken::Map { .. } => Unexpected::Map,
+            CanonicalToken::MapEnd => Unexpected::Other("MapEnd"),
+            CanonicalToken::Field(..) => Unexpected::Other("Field"),
+            CanonicalToken::SkippedField(..) => Unexpected::Other("SkippedField"),
+            CanonicalToken::Struct { .. } => Unexpected::Other("Struct"),
+            CanonicalToken::StructEnd => Unexpected::Other("StructEnd"),
+            CanonicalToken::StructVariant { .. } => Unexpected::StructVariant,
+            CanonicalToken::StructVariantEnd => Unexpected::Other("StructVariantEnd"),
         }
     }
 }
@@ -1118,66 +1210,225 @@ impl<'a> From<&'a Token> for Unexpected<'a> {
 /// [`Deserializer`]: crate::Deserializer
 /// [`Serializer`]: crate::Serializer
 #[derive(Clone, Debug)]
-pub struct Tokens(pub(crate) Vec<Token>);
+pub struct Tokens(pub(crate) Vec<CanonicalToken>);
 
-fn consume_unordered<'a, I>(unordered_tokens: &[&[Token]], mut tokens_iter: I) -> bool
+/// A specific context when traversing through a possible path in the given tokens.
+///
+/// This will either be in the main iterator of tokens (`Iterator`) or in the context of a
+/// (possibly nested) `Unordered` token.
+#[derive(Clone, Debug)]
+enum StateContext<'a, T> {
+    Iterator(T),
+    Unordered {
+        current: slice::Iter<'a, Token>,
+        remaining: Vec<&'static [Token]>,
+    },
+}
+
+/// A current state when traversing through a possible path in the given tokens.
+#[derive(Clone, Debug)]
+struct State<'a, T>(Vec<StateContext<'a, T>>);
+
+impl<'a, T> State<'a, T>
 where
-    I: Iterator<Item = &'a Token>,
+    T: Clone + Iterator<Item = &'a Token>,
 {
-    // TODO: Handle nested Unordered tokens.
+    // TODO: Want to remove the clone requirement, and just share the same base iterator for all
+    // branching paths. Maybe there's a better way to structure this?
 
-    /// A current state in the search.
-    #[derive(Debug)]
-    struct State {
-        set_index: usize,
-        token_index: usize,
-        to_visit: Vec<usize>,
+    /// Splits along several possible paths in an unordered set of tokens, creating a new `State`
+    /// for each path.
+    ///
+    /// The other untraveled paths are aded into the `remaining` field of `StateContext::Unordered`
+    /// for future processing.
+    ///
+    /// This function also steps into each path using the `input` token.
+    fn split(self, paths: &[&'static [Token]], input: &CanonicalToken) -> Vec<Self> {
+        (0..paths.len())
+            .map(move |index| {
+                let mut new_state = self.clone();
+                new_state.0.push(StateContext::Unordered {
+                    current: paths[index].iter(),
+                    remaining: paths
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, tokens)| if i == index { None } else { Some(*tokens) })
+                        .collect(),
+                });
+                new_state
+            })
+            .flat_map(|state| state.feed(input))
+            .collect()
     }
 
-    let mut current = (0..unordered_tokens.len())
-        .map(|i| State {
-            set_index: i,
-            token_index: 0,
-            to_visit: (0..unordered_tokens.len()).filter(|&j| i != j).collect(),
-        })
-        .collect::<Vec<_>>();
-
-    loop {
-        if current.is_empty() {
-            return false;
-        }
-
-        if let Some(token) = tokens_iter.next() {
-            let mut new_current = Vec::new();
-            for mut state in current {
-                if &unordered_tokens[state.set_index][state.token_index] == token {
-                    state.token_index += 1;
-                    if state.token_index == unordered_tokens[state.set_index].len() {
-                        // End condition.
-                        if state.to_visit.is_empty() {
-                            return true;
-                        }
-                        for &new_index in &state.to_visit {
-                            new_current.push(State {
-                                set_index: new_index,
-                                token_index: 0,
-                                to_visit: state
-                                    .to_visit
-                                    .iter()
-                                    .copied()
-                                    .filter(|&i| i != new_index)
-                                    .collect(),
-                            });
+    /// Travels along all possible paths through `token`.
+    ///
+    /// This will branch if the next token is `Unordered`. In other cases, it just returns 0 or 1
+    /// state.
+    fn feed(mut self, input: &CanonicalToken) -> Vec<Self> {
+        // Obtain the next token from the contexts.
+        //
+        // This is done by obtaining the token from the last context that contains tokens.
+        // If a context does not contain tokens, it is popped.
+        // If it is in the middle of an unordered set, we create new states with the remaining
+        // tokens and process those.
+        if let Some(context) = self.0.last_mut() {
+            match context {
+                StateContext::Iterator(tokens) => {
+                    if let Some(token) = tokens.next() {
+                        match CanonicalToken::try_from(token.clone()) {
+                            Ok(canonical_token) => {
+                                // Compare tokens.
+                                if *input == canonical_token {
+                                    vec![self]
+                                } else {
+                                    Vec::new()
+                                }
+                            }
+                            Err(UnorderedTokens(unordered_tokens)) => {
+                                // Split.
+                                if unordered_tokens.is_empty() {
+                                    // This unordered tokens is empty, so we move on to processing
+                                    // the next token.
+                                    self.feed(input)
+                                } else {
+                                    self.split(unordered_tokens, input)
+                                }
+                            }
                         }
                     } else {
-                        new_current.push(state);
+                        // No tokens left. Pop this iterator and reprocess the token.
+                        self.0.pop();
+                        self.feed(input)
+                    }
+                }
+                StateContext::Unordered {
+                    current: tokens,
+                    remaining,
+                } => {
+                    if let Some(token) = tokens.next() {
+                        match CanonicalToken::try_from(token.clone()) {
+                            Ok(canonical_token) => {
+                                // Compare tokens.
+                                if *input == canonical_token {
+                                    vec![self]
+                                } else {
+                                    Vec::new()
+                                }
+                            }
+                            Err(UnorderedTokens(unordered_tokens)) => {
+                                // Split.
+                                if unordered_tokens.is_empty() {
+                                    // This unordered tokens is empty, so we move on to processing
+                                    // the next token.
+                                    self.feed(input)
+                                } else {
+                                    self.split(unordered_tokens, input)
+                                }
+                            }
+                        }
+                    } else {
+                        // No tokens left. Pop, possibly split, and reprocess the token.
+                        let remaining = remaining.clone();
+                        self.0.pop();
+                        if remaining.is_empty() {
+                            self.feed(input)
+                        } else {
+                            // For each remaining, create a new state with it as the current.
+                            self.split(remaining.as_slice(), input)
+                        }
                     }
                 }
             }
-            current = new_current;
         } else {
-            return false;
-        };
+            // There are no more tokens, so we return no new states.
+            Vec::new()
+        }
+    }
+
+    /// Check whether there are any remaining `CanonicalToken`s to be extracted.
+    ///
+    /// This will consume tokens, so don't call this unless you don't care about preserving the
+    /// remaining tokens.
+    fn is_empty(&mut self) -> bool {
+        if let Some(context) = self.0.last_mut() {
+            match context {
+                StateContext::Iterator(tokens) => {
+                    if let Some(token) = tokens.next() {
+                        match CanonicalToken::try_from(token.clone()) {
+                            Ok(_) => {
+                                // Found a token, so not empty.
+                                false
+                            }
+                            Err(UnorderedTokens(unordered_tokens)) => {
+                                // We only need to check if there is at least one canonical token
+                                // contained here.
+                                if let Some((first, remaining)) = unordered_tokens.split_first() {
+                                    self.0.push(StateContext::Unordered {
+                                        current: first.iter(),
+                                        remaining: remaining.to_vec(),
+                                    });
+                                    self.0.is_empty()
+                                } else {
+                                    // This unordered tokens is empty, so proceed to the next token.
+                                    self.is_empty()
+                                }
+                            }
+                        }
+                    } else {
+                        // No tokens left in this context; pop it and move to the next one.
+                        self.0.pop();
+                        self.is_empty()
+                    }
+                }
+                StateContext::Unordered {
+                    current: tokens,
+                    remaining,
+                } => {
+                    if let Some(token) = tokens.next() {
+                        match CanonicalToken::try_from(token.clone()) {
+                            Ok(_) => {
+                                // Found a token, so not empty.
+                                false
+                            }
+                            Err(UnorderedTokens(unordered_tokens)) => {
+                                // We only need to check if there is at least one canonical token
+                                // contained here.
+                                if let Some((first, remaining)) = unordered_tokens.split_first() {
+                                    self.0.push(StateContext::Unordered {
+                                        current: first.iter(),
+                                        remaining: remaining.to_vec(),
+                                    });
+                                    self.0.is_empty()
+                                } else {
+                                    // This unordered tokens is empty, so proceed to the next token.
+                                    self.is_empty()
+                                }
+                            }
+                        }
+                    } else {
+                        // No tokens left. Pop, proceed down another remaining unordered path if
+                        // possible, and reprocess the token.
+                        let remaining = remaining.clone();
+                        self.0.pop();
+                        if let Some((first, remaining)) = remaining.split_first() {
+                            self.0.push(StateContext::Unordered {
+                                current: first.iter(),
+                                remaining: remaining.to_vec(),
+                            });
+                            self.0.is_empty()
+                        } else {
+                            // No more unordered tokens, so proceed to the next context.
+                            self.is_empty()
+                        }
+                    }
+                }
+            }
+        } else {
+            // No contexts left to check. This means there are no more tokens, and therefore the
+            // state is empty.
+            true
+        }
     }
 }
 
@@ -1186,96 +1437,69 @@ where
     for<'a> &'a T: IntoIterator<Item = &'a Token>,
 {
     fn eq(&self, other: &T) -> bool {
-        let mut self_iter = self.0.iter();
-        let mut other_iter = other.into_iter();
+        let mut states = vec![State(vec![StateContext::Iterator(
+            other.into_iter().collect::<Vec<_>>().into_iter(),
+        )])];
 
-        loop {
-            // Obtain next tokens, or return if no tokens are available.
-            let self_token;
-            loop {
-                if let Some(token) = self_iter.next() {
-                    if let Token::Unordered(tokens) = token {
-                        if tokens.iter().filter(|s| !s.is_empty()).count() == 0 {
-                            continue;
-                        }
-                    }
-                    self_token = token;
-                    break;
-                }
-                return other_iter.next().is_none();
+        for token in &self.0 {
+            let mut new_states = Vec::new();
+            for state in states {
+                new_states.extend(state.feed(token));
             }
+            states = new_states;
+        }
 
-            let other_token;
-            loop {
-                if let Some(token) = other_iter.next() {
-                    if let Token::Unordered(tokens) = token {
-                        if tokens.iter().filter(|s| !s.is_empty()).count() == 0 {
-                            continue;
-                        }
-                    }
-                    other_token = token;
-                    break;
-                }
-                return false;
-            }
-
-            match (self_token, other_token) {
-                (Token::Unordered(_), Token::Unordered(_)) => {
-                    if self_token != other_token {
-                        return false;
-                    }
-                }
-                (Token::Unordered(tokens), _) => {
-                    if !consume_unordered(tokens, iter::once(other_token).chain(&mut other_iter)) {
-                        return false;
-                    }
-                }
-                (_, Token::Unordered(tokens)) => {
-                    if !consume_unordered(tokens, iter::once(self_token).chain(&mut self_iter)) {
-                        return false;
-                    }
-                }
-                _ => {
-                    if self_token != other_token {
-                        return false;
-                    }
-                }
-            }
+        if let Some(state) = states.first_mut() {
+            // Verify whether any tokens are left in `other`.
+            state.is_empty()
+        } else {
+            // No states, which means no path through `other` could be found.
+            false
         }
     }
 }
 
 impl IntoIterator for Tokens {
     type Item = Token;
-    type IntoIter = vec::IntoIter<Token>;
+    type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        IntoIter {
+            token_iter: self.0.into_iter(),
+        }
     }
 }
 
-#[allow(clippy::into_iter_without_iter)]
-impl<'a> IntoIterator for &'a Tokens {
-    type Item = &'a Token;
-    type IntoIter = slice::Iter<'a, Token>;
+/// An iterator that moves [`Token`]s out of a [`Tokens`] `struct`.
+///
+/// This `struct` is created by the [`into_iter()`] method on `Tokens` (provided by the
+/// [`IntoIterator`] trait).
+///
+/// [`into_iter()`]: IntoIterator::into_iter()
+pub struct IntoIter {
+    token_iter: vec::IntoIter<CanonicalToken>,
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+impl Iterator for IntoIter {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.token_iter.next().map(From::from)
     }
 }
 
 /// An iterator over tokens.
 ///
 /// This iterator owns the tokens, iterating over references to them.
-pub(crate) struct Iter<'a> {
+pub(crate) struct OwningIter<'a> {
     /// A pointer to the entire buffer that is owned by this struct.
     ///
     /// Immutable references to the `Token`s in this buffer can exist within the lifetime `'a`.
-    buf: NonNull<Token>,
+    buf: NonNull<CanonicalToken>,
     /// A pointer to the current position in iteration.
-    ptr: *const Token,
+    ptr: *const CanonicalToken,
     /// A pointer to the end of the allocated buffer.
-    end: *const Token,
+    end: *const CanonicalToken,
     /// The capacity of the underlying allocation.
     ///
     /// This is only used for deallocating when the struct is dropped.
@@ -1288,7 +1512,7 @@ pub(crate) struct Iter<'a> {
     lifetime: PhantomData<&'a ()>,
 }
 
-impl Iter<'_> {
+impl OwningIter<'_> {
     /// Creates a new `Iter` from a list of `Tokens`.
     ///
     /// Takes ownership of the `Tokens` and its underlying buffer.
@@ -1308,7 +1532,7 @@ impl Iter<'_> {
     }
 
     /// Returns the remaining `Token`s as a slice.
-    fn as_slice(&self) -> &[Token] {
+    fn as_slice(&self) -> &[CanonicalToken] {
         // SAFETY: `self.ptr` is guaranteed to be less than `self.end`, and therefore a valid
         // pointer within the allocated object.
         unsafe {
@@ -1323,8 +1547,8 @@ impl Iter<'_> {
     }
 }
 
-impl<'a> Iterator for Iter<'a> {
-    type Item = &'a Token;
+impl<'a> Iterator for OwningIter<'a> {
+    type Item = &'a CanonicalToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.ptr == self.end {
@@ -1342,16 +1566,16 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-impl Debug for Iter<'_> {
+impl Debug for OwningIter<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_tuple("Iter")
+            .debug_tuple("OwningIter")
             .field(&self.as_slice())
             .finish()
     }
 }
 
-impl Drop for Iter<'_> {
+impl Drop for OwningIter<'_> {
     fn drop(&mut self) {
         // SAFETY: The raw parts stored in this struct are guaranteed to correspond to the valid
         // parts of a `Vec`, since the parts were obtained directly from a `Vec` originally.
@@ -1371,7 +1595,8 @@ impl Drop for Iter<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Iter,
+        CanonicalToken,
+        OwningIter,
         Token,
         Tokens,
     };
@@ -1382,6 +1607,7 @@ mod tests {
         vec::Vec,
     };
     use claims::{
+        assert_matches,
         assert_none,
         assert_some,
         assert_some_eq,
@@ -1389,1086 +1615,676 @@ mod tests {
     use serde::de::Unexpected;
 
     #[test]
-    fn token_bool_eq() {
-        assert_eq!(Token::Bool(true), Token::Bool(true));
-    }
-
-    #[test]
-    fn token_bool_ne() {
-        assert_ne!(Token::Bool(true), Token::Bool(false));
-    }
-
-    #[test]
-    fn token_i8_eq() {
-        assert_eq!(Token::I8(42), Token::I8(42));
-    }
-
-    #[test]
-    fn token_i8_ne() {
-        assert_ne!(Token::I8(42), Token::I8(43));
-    }
-
-    #[test]
-    fn token_i16_eq() {
-        assert_eq!(Token::I16(42), Token::I16(42));
-    }
-
-    #[test]
-    fn token_i16_ne() {
-        assert_ne!(Token::I16(42), Token::I16(43));
-    }
-
-    #[test]
-    fn token_i32_eq() {
-        assert_eq!(Token::I32(42), Token::I32(42));
-    }
-
-    #[test]
-    fn token_i32_ne() {
-        assert_ne!(Token::I32(42), Token::I32(43));
-    }
-
-    #[test]
-    fn token_i64_eq() {
-        assert_eq!(Token::I64(42), Token::I64(42));
-    }
-
-    #[test]
-    fn token_i64_ne() {
-        assert_ne!(Token::I64(42), Token::I64(43));
-    }
-
-    #[test]
-    fn token_i128_eq() {
-        assert_eq!(Token::I128(42), Token::I128(42));
-    }
-
-    #[test]
-    fn token_i128_ne() {
-        assert_ne!(Token::I128(42), Token::I128(43));
-    }
-
-    #[test]
-    fn token_u8_eq() {
-        assert_eq!(Token::U8(42), Token::U8(42));
-    }
-
-    #[test]
-    fn token_u8_ne() {
-        assert_ne!(Token::U8(42), Token::U8(43));
-    }
-
-    #[test]
-    fn token_u16_eq() {
-        assert_eq!(Token::U16(42), Token::U16(42));
-    }
-
-    #[test]
-    fn token_u16_ne() {
-        assert_ne!(Token::U16(42), Token::U16(43));
-    }
-
-    #[test]
-    fn token_u32_eq() {
-        assert_eq!(Token::U32(42), Token::U32(42));
-    }
-
-    #[test]
-    fn token_u32_ne() {
-        assert_ne!(Token::U32(42), Token::U32(43));
-    }
-
-    #[test]
-    fn token_u64_eq() {
-        assert_eq!(Token::U64(42), Token::U64(42));
-    }
-
-    #[test]
-    fn token_u64_ne() {
-        assert_ne!(Token::U64(42), Token::U64(43));
-    }
-
-    #[test]
-    fn token_u128_eq() {
-        assert_eq!(Token::U128(42), Token::U128(42));
-    }
-
-    #[test]
-    fn token_u128_ne() {
-        assert_ne!(Token::U128(42), Token::U128(43));
-    }
-
-    #[test]
-    fn token_f32_eq() {
-        assert_eq!(Token::F32(42.), Token::F32(42.));
-    }
-
-    #[test]
-    fn token_f32_ne() {
-        assert_ne!(Token::F32(42.), Token::F32(43.));
-    }
-
-    #[test]
-    fn token_f64_eq() {
-        assert_eq!(Token::F64(42.), Token::F64(42.));
-    }
-
-    #[test]
-    fn token_f64_ne() {
-        assert_ne!(Token::F64(42.), Token::F64(43.));
-    }
-
-    #[test]
-    fn token_char_eq() {
-        assert_eq!(Token::Char('a'), Token::Char('a'));
-    }
-
-    #[test]
-    fn token_char_ne() {
-        assert_ne!(Token::Char('a'), Token::Char('b'));
-    }
-
-    #[test]
-    fn token_str_eq() {
-        assert_eq!(Token::Str("a".to_owned()), Token::Str("a".to_owned()));
-    }
-
-    #[test]
-    fn token_str_ne() {
-        assert_ne!(Token::Str("a".to_owned()), Token::Str("b".to_owned()));
-    }
-
-    #[test]
-    fn token_bytes_eq() {
-        assert_eq!(Token::Bytes(b"a".to_vec()), Token::Bytes(b"a".to_vec()));
-    }
-
-    #[test]
-    fn token_bytes_ne() {
-        assert_ne!(Token::Bytes(b"a".to_vec()), Token::Bytes(b"b".to_vec()));
-    }
-
-    #[test]
-    fn token_none_eq() {
-        assert_eq!(Token::None, Token::None);
-    }
-
-    #[test]
-    fn token_some_eq() {
-        assert_eq!(Token::Some, Token::Some);
-    }
-
-    #[test]
-    fn token_unit_eq() {
-        assert_eq!(Token::Unit, Token::Unit);
-    }
-
-    #[test]
-    fn token_unit_struct_eq() {
-        assert_eq!(
-            Token::UnitStruct { name: "a" },
-            Token::UnitStruct { name: "a" }
-        );
-    }
-
-    #[test]
-    fn token_unit_struct_ne() {
-        assert_ne!(
-            Token::UnitStruct { name: "a" },
-            Token::UnitStruct { name: "b" }
-        );
-    }
-
-    #[test]
-    fn token_unit_variant_eq() {
-        assert_eq!(
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_unit_variant_ne_name() {
-        assert_ne!(
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::UnitVariant {
-                name: "b",
-                variant_index: 1,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_unit_variant_ne_variant_index() {
-        assert_ne!(
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 2,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_unit_variant_ne_variant() {
-        assert_ne!(
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::UnitVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "bar"
-            }
-        );
-    }
-
-    #[test]
-    fn token_newtype_struct_eq() {
-        assert_eq!(
-            Token::NewtypeStruct { name: "a" },
-            Token::NewtypeStruct { name: "a" }
-        );
-    }
-
-    #[test]
-    fn token_newtype_struct_ne() {
-        assert_ne!(
-            Token::NewtypeStruct { name: "a" },
-            Token::NewtypeStruct { name: "b" }
-        );
-    }
-
-    #[test]
-    fn token_newtype_variant_eq() {
-        assert_eq!(
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_newtype_variant_ne_name() {
-        assert_ne!(
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::NewtypeVariant {
-                name: "b",
-                variant_index: 1,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_newtype_variant_ne_variant_index() {
-        assert_ne!(
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 2,
-                variant: "foo"
-            }
-        );
-    }
-
-    #[test]
-    fn token_newtype_variant_ne_variant() {
-        assert_ne!(
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo"
-            },
-            Token::NewtypeVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "bar"
-            }
-        );
-    }
-
-    #[test]
-    fn token_seq_eq_some() {
-        assert_eq!(Token::Seq { len: Some(42) }, Token::Seq { len: Some(42) });
-    }
-
-    #[test]
-    fn token_seq_eq_none() {
-        assert_eq!(Token::Seq { len: None }, Token::Seq { len: None });
-    }
-
-    #[test]
-    fn token_seq_ne_some() {
-        assert_ne!(Token::Seq { len: Some(42) }, Token::Seq { len: Some(43) });
-    }
-
-    #[test]
-    fn token_seq_ne_some_none() {
-        assert_ne!(Token::Seq { len: Some(42) }, Token::Seq { len: None });
-    }
-
-    #[test]
-    fn token_seq_end_eq() {
-        assert_eq!(Token::SeqEnd, Token::SeqEnd);
-    }
-
-    #[test]
-    fn token_tuple_eq() {
-        assert_eq!(Token::Tuple { len: 42 }, Token::Tuple { len: 42 });
-    }
-
-    #[test]
-    fn token_tuple_ne() {
-        assert_ne!(Token::Tuple { len: 42 }, Token::Tuple { len: 43 });
-    }
-
-    #[test]
-    fn token_tuple_end_eq() {
-        assert_eq!(Token::TupleEnd, Token::TupleEnd);
-    }
-
-    #[test]
-    fn token_tuple_struct_eq() {
-        assert_eq!(
-            Token::TupleStruct { name: "a", len: 42 },
-            Token::TupleStruct { name: "a", len: 42 }
-        );
-    }
-
-    #[test]
-    fn token_tuple_struct_ne_name() {
-        assert_ne!(
-            Token::TupleStruct { name: "a", len: 42 },
-            Token::TupleStruct { name: "b", len: 42 }
-        );
-    }
-
-    #[test]
-    fn token_tuple_struct_ne_len() {
-        assert_ne!(
-            Token::TupleStruct { name: "a", len: 42 },
-            Token::TupleStruct { name: "a", len: 43 }
-        );
-    }
-
-    #[test]
-    fn token_tuple_struct_end_eq() {
-        assert_eq!(Token::TupleStructEnd, Token::TupleStructEnd);
-    }
-
-    #[test]
-    fn token_tuple_variant_eq() {
-        assert_eq!(
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_tuple_variant_ne_name() {
-        assert_ne!(
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::TupleVariant {
-                name: "b",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_tuple_variant_ne_variant_index() {
-        assert_ne!(
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 2,
-                variant: "foo",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_tuple_variant_ne_variant() {
-        assert_ne!(
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "bar",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_tuple_variant_ne_len() {
-        assert_ne!(
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::TupleVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 43
-            }
-        );
-    }
-
-    #[test]
-    fn token_tuple_variant_end_eq() {
-        assert_eq!(Token::TupleVariantEnd, Token::TupleVariantEnd);
-    }
-
-    #[test]
-    fn token_map_eq_some() {
-        assert_eq!(Token::Map { len: Some(42) }, Token::Map { len: Some(42) });
-    }
-
-    #[test]
-    fn token_map_eq_none() {
-        assert_eq!(Token::Map { len: None }, Token::Map { len: None });
-    }
-
-    #[test]
-    fn token_map_ne_some() {
-        assert_ne!(Token::Map { len: Some(42) }, Token::Map { len: Some(43) });
-    }
-
-    #[test]
-    fn token_map_ne_some_none() {
-        assert_ne!(Token::Map { len: Some(42) }, Token::Map { len: None });
-    }
-
-    #[test]
-    fn token_map_end_eq() {
-        assert_eq!(Token::MapEnd, Token::MapEnd);
-    }
-
-    #[test]
-    fn token_struct_eq() {
-        assert_eq!(
-            Token::Struct { name: "a", len: 42 },
-            Token::Struct { name: "a", len: 42 }
-        );
-    }
-
-    #[test]
-    fn token_struct_ne_name() {
-        assert_ne!(
-            Token::Struct { name: "a", len: 42 },
-            Token::Struct { name: "b", len: 42 }
-        );
-    }
-
-    #[test]
-    fn token_struct_ne_len() {
-        assert_ne!(
-            Token::Struct { name: "a", len: 42 },
-            Token::Struct { name: "a", len: 43 }
-        );
-    }
-
-    #[test]
-    fn token_struct_end_eq() {
-        assert_eq!(Token::StructEnd, Token::StructEnd);
-    }
-
-    #[test]
-    fn token_struct_variant_ne_name() {
-        assert_ne!(
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::StructVariant {
-                name: "b",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_struct_variant_ne_variant_index() {
-        assert_ne!(
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::StructVariant {
-                name: "a",
-                variant_index: 2,
-                variant: "foo",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_struct_variant_ne_variant() {
-        assert_ne!(
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "bar",
-                len: 42
-            }
-        );
-    }
-
-    #[test]
-    fn token_struct_variant_ne_len() {
-        assert_ne!(
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 42
-            },
-            Token::StructVariant {
-                name: "a",
-                variant_index: 1,
-                variant: "foo",
-                len: 43
-            }
-        );
-    }
-
-    #[test]
-    fn token_struct_variant_end_eq() {
-        assert_eq!(Token::StructVariantEnd, Token::StructVariantEnd);
-    }
-
-    #[test]
-    fn token_field_eq() {
-        assert_eq!(Token::Field("a"), Token::Field("a"));
-    }
-
-    #[test]
-    fn token_field_ne() {
-        assert_ne!(Token::Field("a"), Token::Field("b"));
-    }
-
-    #[test]
-    fn token_skipped_field_eq() {
-        assert_eq!(Token::SkippedField("a"), Token::SkippedField("a"));
-    }
-
-    #[test]
-    fn token_skipped_field_ne() {
-        assert_ne!(Token::SkippedField("a"), Token::SkippedField("b"));
-    }
-
-    #[test]
-    fn token_variant_ne() {
-        assert_ne!(Token::Bool(true), Token::U16(42));
-    }
-
-    #[test]
-    fn token_unordered_eq_same_order() {
-        assert_eq!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_eq_different_order() {
-        assert_eq!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(true)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_ne_same_order() {
-        assert_ne!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(43)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_ne_different_order() {
-        assert_ne!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(false)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_ne_len_shorter() {
-        assert_ne!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::Bool(true)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_ne_len_longer() {
-        assert_ne!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::Bool(true)], &[Token::U8(42)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_ne_different_variant() {
-        assert_ne!(
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-            Token::Unordered(&[&[Token::Bool(true)], &[Token::U16(42)]])
-        );
-    }
-
-    #[test]
-    fn token_unordered_eq_nested() {
-        assert_eq!(
-            Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]])]
-            ]),
-            Token::Unordered(&[
-                &[Token::Unordered(&[&[Token::U8(42)], &[Token::Bool(true)]])],
-                &[Token::Bool(true)]
-            ])
-        );
-    }
-
-    #[test]
     fn tokens_bool_eq() {
         assert_eq!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::Bool(true)])
+            Tokens(vec![CanonicalToken::Bool(true)]),
+            [Token::Bool(true)]
         );
     }
 
     #[test]
     fn tokens_bool_ne() {
         assert_ne!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::Bool(false)])
+            Tokens(vec![CanonicalToken::Bool(true)]),
+            [Token::Bool(false)]
         );
     }
 
     #[test]
     fn tokens_variant_ne() {
-        assert_ne!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::U16(42)])
-        );
+        assert_ne!(Tokens(vec![CanonicalToken::Bool(true)]), [Token::U16(42)]);
     }
 
     #[test]
     fn tokens_empty_eq() {
-        assert_eq!(Tokens(vec![]), Tokens(vec![]));
+        assert_eq!(Tokens(vec![]), []);
     }
 
     #[test]
     fn tokens_multiple_eq() {
         assert_eq!(
-            Tokens(vec![Token::Bool(true), Token::U8(42)]),
-            Tokens(vec![Token::Bool(true), Token::U8(42)])
+            Tokens(vec![CanonicalToken::Bool(true), CanonicalToken::U8(42)]),
+            [Token::Bool(true), Token::U8(42)]
         );
     }
 
     #[test]
     fn tokens_multiple_ne_values() {
         assert_ne!(
-            Tokens(vec![Token::Bool(true), Token::U8(42)]),
-            Tokens(vec![Token::Bool(false), Token::U8(42)])
+            Tokens(vec![CanonicalToken::Bool(true), CanonicalToken::U8(42)]),
+            [Token::Bool(false), Token::U8(42)]
         );
     }
 
     #[test]
     fn tokens_multiple_ne_shorter() {
         assert_ne!(
-            Tokens(vec![Token::Bool(true), Token::U8(42)]),
-            Tokens(vec![Token::Bool(true)])
+            Tokens(vec![CanonicalToken::Bool(true), CanonicalToken::U8(42)]),
+            [Token::Bool(true)]
         );
     }
 
     #[test]
     fn tokens_multiple_ne_longer() {
         assert_ne!(
-            Tokens(vec![Token::Bool(true), Token::U8(42)]),
-            Tokens(vec![Token::Bool(true), Token::U8(42), Token::U8(42)])
+            Tokens(vec![CanonicalToken::Bool(true), CanonicalToken::U8(42)]),
+            [Token::Bool(true), Token::U8(42), Token::U8(42)]
         );
     }
 
     #[test]
-    fn tokens_unordered_both_sides_eq() {
+    fn tokens_unordered_eq_same_order() {
         assert_eq!(
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-            Tokens(vec![Token::Unordered(&[
-                &[Token::U8(42)],
-                &[Token::Bool(true)]
-            ])])
+            Tokens(vec![CanonicalToken::Bool(true), CanonicalToken::U8(42)]),
+            [Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]])],
         );
     }
 
     #[test]
-    fn tokens_unordered_both_sides_ne() {
-        assert_ne!(
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-            Tokens(vec![Token::Unordered(&[
-                &[Token::U8(42)],
-                &[Token::Bool(false)]
-            ])])
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_left_eq_same_order() {
+    fn tokens_unordered_eq_different_order() {
         assert_eq!(
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-            Tokens(vec![Token::Bool(true), Token::U8(42)])
+            Tokens(vec![CanonicalToken::U8(42), CanonicalToken::Bool(true)]),
+            [Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]])],
         );
     }
 
     #[test]
-    fn tokens_unordered_left_eq_different_order() {
-        assert_eq!(
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-            Tokens(vec![Token::U8(42), Token::Bool(true)])
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_left_eq_within_other_tokens() {
+    fn tokens_unordered_eq_within_other_tokens() {
         assert_eq!(
             Tokens(vec![
+                CanonicalToken::Char('a'),
+                CanonicalToken::U8(42),
+                CanonicalToken::Bool(true),
+                CanonicalToken::I16(-42)
+            ]),
+            [
                 Token::Char('a'),
                 Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
                 Token::I16(-42)
-            ]),
-            Tokens(vec![
-                Token::Char('a'),
-                Token::U8(42),
-                Token::Bool(true),
-                Token::I16(-42)
-            ])
+            ],
         );
     }
 
     #[test]
-    fn tokens_unordered_left_eq_multiple_tokens() {
+    fn tokens_unordered_eq_multiple_tokens() {
         assert_eq!(
-            Tokens(vec![Token::Unordered(&[
+            Tokens(vec![
+                CanonicalToken::U8(42),
+                CanonicalToken::Bool(true),
+                CanonicalToken::Char('a')
+            ]),
+            [Token::Unordered(&[
                 &[Token::Bool(true), Token::Char('a')],
                 &[Token::U8(42)]
-            ])]),
-            Tokens(vec![Token::U8(42), Token::Bool(true), Token::Char('a')])
+            ])],
         );
     }
 
     #[test]
-    fn tokens_unordered_left_ne_empty() {
+    fn tokens_unordered_ne_empty() {
         assert_ne!(
-            Tokens(vec![Token::Unordered(&[])]),
-            Tokens(vec![Token::Bool(true)])
+            Tokens(vec![CanonicalToken::Bool(true)]),
+            [Token::Unordered(&[])],
         );
     }
 
     #[test]
-    fn tokens_unordered_left_ne_variant() {
+    fn tokens_unordered_ne_variant() {
         assert_ne!(
-            Tokens(vec![Token::Unordered(&[&[Token::I8(42)]])]),
-            Tokens(vec![Token::Bool(true)])
+            Tokens(vec![CanonicalToken::Bool(true)]),
+            [Token::Unordered(&[&[Token::I8(42)]])],
         );
     }
 
     #[test]
-    fn tokens_unordered_left_ne_value() {
+    fn tokens_unordered_ne_value() {
         assert_ne!(
-            Tokens(vec![Token::Unordered(&[&[Token::Bool(false)]])]),
-            Tokens(vec![Token::Bool(true)])
+            Tokens(vec![CanonicalToken::Bool(true)]),
+            [Token::Unordered(&[&[Token::Bool(false)]])],
         );
     }
 
     #[test]
-    fn tokens_unordered_right_eq_same_order() {
-        assert_eq!(
-            Tokens(vec![Token::Bool(true), Token::U8(42)]),
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_right_eq_different_order() {
-        assert_eq!(
-            Tokens(vec![Token::U8(42), Token::Bool(true)]),
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true)],
-                &[Token::U8(42)]
-            ])]),
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_right_eq_within_other_tokens() {
+    fn tokens_unordered_nested() {
         assert_eq!(
             Tokens(vec![
-                Token::Char('a'),
-                Token::U8(42),
-                Token::Bool(true),
-                Token::I16(-42)
+                CanonicalToken::Unit,
+                CanonicalToken::U8(4),
+                CanonicalToken::U8(3),
+                CanonicalToken::U8(1),
+                CanonicalToken::U8(2),
+                CanonicalToken::Bool(true)
             ]),
-            Tokens(vec![
-                Token::Char('a'),
-                Token::Unordered(&[&[Token::Bool(true)], &[Token::U8(42)]]),
-                Token::I16(-42)
-            ]),
+            [Token::Unordered(&[
+                &[Token::Bool(true)],
+                &[Token::Unordered(&[
+                    &[Token::U8(1), Token::U8(2)],
+                    &[Token::U8(3)],
+                ])],
+                &[Token::Unit, Token::U8(4)],
+            ])]
         );
     }
 
     #[test]
-    fn tokens_unordered_right_eq_multiple_tokens() {
+    fn tokens_unordered_empty() {
         assert_eq!(
-            Tokens(vec![Token::U8(42), Token::Bool(true), Token::Char('a')]),
-            Tokens(vec![Token::Unordered(&[
-                &[Token::Bool(true), Token::Char('a')],
-                &[Token::U8(42)]
-            ])]),
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[]), Token::Unit]
         );
     }
 
     #[test]
-    fn tokens_unordered_right_ne_empty() {
-        assert_ne!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::Unordered(&[])]),
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_right_ne_variant() {
-        assert_ne!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::Unordered(&[&[Token::I8(42)]])]),
-        );
-    }
-
-    #[test]
-    fn tokens_unordered_right_ne_value() {
-        assert_ne!(
-            Tokens(vec![Token::Bool(true)]),
-            Tokens(vec![Token::Unordered(&[&[Token::Bool(false)]])]),
-        );
-    }
-
-    #[test]
-    fn unexpected_from_token_bool() {
-        assert_eq!(Unexpected::from(&Token::Bool(true)), Unexpected::Bool(true))
-    }
-
-    #[test]
-    fn unexpected_from_token_i8() {
-        assert_eq!(Unexpected::from(&Token::I8(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i16() {
-        assert_eq!(Unexpected::from(&Token::I16(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i32() {
-        assert_eq!(Unexpected::from(&Token::I32(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i64() {
-        assert_eq!(Unexpected::from(&Token::I64(42)), Unexpected::Signed(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_i128() {
+    fn tokens_unordered_empty_nested() {
         assert_eq!(
-            Unexpected::from(&Token::I128(42)),
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unordered(&[])]]), Token::Unit]
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_empty_at_end() {
+        assert_eq!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unit, Token::Unordered(&[])]
+        );
+    }
+
+    #[test]
+    fn tokens_unordered_nonempty_at_end() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unit, Token::Unordered(&[&[Token::Unit]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unit,], &[Token::Unit]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered_more_tokens() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unit, Token::Unit]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered_nested_empty() {
+        assert_eq!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unit, Token::Unordered(&[])]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered_nested_nonempty() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[
+                Token::Unit,
+                Token::Unordered(&[&[Token::Unit, Token::Unit], &[Token::Unit]])
+            ]])]
+        );
+    }
+
+    #[test]
+    fn token_from_canonical_token_bool() {
+        assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i8() {
+        assert_matches!(Token::from(CanonicalToken::I8(42)), Token::I8(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i16() {
+        assert_matches!(Token::from(CanonicalToken::I16(42)), Token::I16(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i32() {
+        assert_matches!(Token::from(CanonicalToken::I32(42)), Token::I32(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i64() {
+        assert_matches!(Token::from(CanonicalToken::I64(42)), Token::I64(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i128() {
+        assert_matches!(Token::from(CanonicalToken::I128(42)), Token::I128(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u8() {
+        assert_matches!(Token::from(CanonicalToken::U8(42)), Token::U8(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u16() {
+        assert_matches!(Token::from(CanonicalToken::U16(42)), Token::U16(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u32() {
+        assert_matches!(Token::from(CanonicalToken::U32(42)), Token::U32(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u64() {
+        assert_matches!(Token::from(CanonicalToken::U64(42)), Token::U64(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u128() {
+        assert_matches!(Token::from(CanonicalToken::U128(42)), Token::U128(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_f32() {
+        assert_matches!(Token::from(CanonicalToken::F32(42.9)), Token::F32(_))
+    }
+
+    #[test]
+    fn token_from_canonical_token_f64() {
+        assert_matches!(Token::from(CanonicalToken::F64(42.9)), Token::F64(_))
+    }
+
+    #[test]
+    fn token_from_canonical_token_char() {
+        assert_matches!(Token::from(CanonicalToken::Char('a')), Token::Char('a'))
+    }
+
+    #[test]
+    fn token_from_canonical_token_str() {
+        assert_matches!(
+            Token::from(CanonicalToken::Str("foo".to_owned())),
+            Token::Str(_)
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_bytes() {
+        assert_matches!(
+            Token::from(CanonicalToken::Bytes(b"foo".to_vec())),
+            Token::Bytes(_)
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_none() {
+        assert_matches!(Token::from(CanonicalToken::None), Token::None)
+    }
+
+    #[test]
+    fn token_from_canonical_token_some() {
+        assert_matches!(Token::from(CanonicalToken::Some), Token::Some)
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit() {
+        assert_matches!(Token::from(CanonicalToken::Unit), Token::Unit)
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::UnitStruct { name: "foo" }),
+            Token::UnitStruct { name: "foo" }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::UnitVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }),
+            Token::UnitVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_newtype_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::NewtypeStruct { name: "foo" }),
+            Token::NewtypeStruct { name: "foo" }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_newtype_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::NewtypeVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }),
+            Token::NewtypeVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_seq() {
+        assert_matches!(
+            Token::from(CanonicalToken::Seq { len: Some(42) }),
+            Token::Seq { len: Some(42) }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_seq_end() {
+        assert_matches!(Token::from(CanonicalToken::SeqEnd), Token::SeqEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple() {
+        assert_matches!(
+            Token::from(CanonicalToken::Tuple { len: 42 }),
+            Token::Tuple { len: 42 }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_end() {
+        assert_matches!(Token::from(CanonicalToken::TupleEnd), Token::TupleEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleStruct {
+                name: "foo",
+                len: 42
+            }),
+            Token::TupleStruct {
+                name: "foo",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_struct_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleStructEnd),
+            Token::TupleStructEnd
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }),
+            Token::TupleVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_variant_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleVariantEnd),
+            Token::TupleVariantEnd
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_map() {
+        assert_matches!(
+            Token::from(CanonicalToken::Map { len: Some(42) }),
+            Token::Map { len: Some(42) }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_map_end() {
+        assert_matches!(Token::from(CanonicalToken::MapEnd), Token::MapEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_field() {
+        assert_matches!(
+            Token::from(CanonicalToken::Field("foo")),
+            Token::Field("foo")
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_skipped_field() {
+        assert_matches!(
+            Token::from(CanonicalToken::SkippedField("foo")),
+            Token::SkippedField("foo")
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::Struct {
+                name: "foo",
+                len: 42
+            }),
+            Token::Struct {
+                name: "foo",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_end() {
+        assert_matches!(Token::from(CanonicalToken::StructEnd), Token::StructEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::StructVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }),
+            Token::StructVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_variant_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::StructVariantEnd),
+            Token::StructVariantEnd
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_bool() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Bool(true)),
+            Unexpected::Bool(true)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i8() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I8(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i16() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I16(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i32() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I32(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I64(42)),
+            Unexpected::Signed(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_i128() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::I128(42)),
             Unexpected::Other("i128")
         )
     }
 
     #[test]
-    fn unexpected_from_token_u8() {
-        assert_eq!(Unexpected::from(&Token::U8(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u16() {
-        assert_eq!(Unexpected::from(&Token::U16(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u32() {
-        assert_eq!(Unexpected::from(&Token::U32(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u64() {
-        assert_eq!(Unexpected::from(&Token::U64(42)), Unexpected::Unsigned(42))
-    }
-
-    #[test]
-    fn unexpected_from_token_u128() {
+    fn unexpected_from_canonical_token_u8() {
         assert_eq!(
-            Unexpected::from(&Token::U128(42)),
+            Unexpected::from(&CanonicalToken::U8(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u16() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U16(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u32() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U32(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U64(42)),
+            Unexpected::Unsigned(42)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_u128() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::U128(42)),
             Unexpected::Other("u128")
         )
     }
 
     #[test]
-    fn unexpected_from_token_f32() {
-        assert_eq!(Unexpected::from(&Token::F32(42.)), Unexpected::Float(42.))
-    }
-
-    #[test]
-    fn unexpected_from_token_f64() {
-        assert_eq!(Unexpected::from(&Token::F64(42.)), Unexpected::Float(42.))
-    }
-
-    #[test]
-    fn unexpected_from_token_char() {
-        assert_eq!(Unexpected::from(&Token::Char('a')), Unexpected::Char('a'))
-    }
-
-    #[test]
-    fn unexpected_from_token_str() {
+    fn unexpected_from_canonical_token_f32() {
         assert_eq!(
-            Unexpected::from(&Token::Str("foo".to_owned())),
+            Unexpected::from(&CanonicalToken::F32(42.)),
+            Unexpected::Float(42.)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_f64() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::F64(42.)),
+            Unexpected::Float(42.)
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_char() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Char('a')),
+            Unexpected::Char('a')
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_str() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Str("foo".to_owned())),
             Unexpected::Str("foo")
         )
     }
 
     #[test]
-    fn unexpected_from_token_bytes() {
+    fn unexpected_from_canonical_token_bytes() {
         assert_eq!(
-            Unexpected::from(&Token::Bytes(b"foo".to_vec())),
+            Unexpected::from(&CanonicalToken::Bytes(b"foo".to_vec())),
             Unexpected::Bytes(b"foo")
         )
     }
 
     #[test]
-    fn unexpected_from_token_some() {
-        assert_eq!(Unexpected::from(&Token::Some), Unexpected::Option)
+    fn unexpected_from_canonical_token_some() {
+        assert_eq!(Unexpected::from(&CanonicalToken::Some), Unexpected::Option)
     }
 
     #[test]
-    fn unexpected_from_token_none() {
-        assert_eq!(Unexpected::from(&Token::None), Unexpected::Option)
+    fn unexpected_from_canonical_token_none() {
+        assert_eq!(Unexpected::from(&CanonicalToken::None), Unexpected::Option)
     }
 
     #[test]
-    fn unexpected_from_token_unit() {
-        assert_eq!(Unexpected::from(&Token::Unit), Unexpected::Unit)
+    fn unexpected_from_canonical_token_unit() {
+        assert_eq!(Unexpected::from(&CanonicalToken::Unit), Unexpected::Unit)
     }
 
     #[test]
-    fn unexpected_from_token_unit_struct() {
+    fn unexpected_from_canonical_token_unit_struct() {
         assert_eq!(
-            Unexpected::from(&Token::UnitStruct { name: "foo" }),
+            Unexpected::from(&CanonicalToken::UnitStruct { name: "foo" }),
             Unexpected::Unit
         )
     }
 
     #[test]
-    fn unexpected_from_token_unit_variant() {
+    fn unexpected_from_canonical_token_unit_variant() {
         assert_eq!(
-            Unexpected::from(&Token::UnitVariant {
+            Unexpected::from(&CanonicalToken::UnitVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2478,17 +2294,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_newtype_struct() {
+    fn unexpected_from_canonical_token_newtype_struct() {
         assert_eq!(
-            Unexpected::from(&Token::NewtypeStruct { name: "foo" }),
+            Unexpected::from(&CanonicalToken::NewtypeStruct { name: "foo" }),
             Unexpected::NewtypeStruct
         )
     }
 
     #[test]
-    fn unexpected_from_token_newtype_variant() {
+    fn unexpected_from_canonical_token_newtype_variant() {
         assert_eq!(
-            Unexpected::from(&Token::NewtypeVariant {
+            Unexpected::from(&CanonicalToken::NewtypeVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2498,35 +2314,41 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_seq() {
-        assert_eq!(Unexpected::from(&Token::Seq { len: None }), Unexpected::Seq)
-    }
-
-    #[test]
-    fn unexpected_from_token_tuple() {
-        assert_eq!(Unexpected::from(&Token::Tuple { len: 0 }), Unexpected::Seq)
-    }
-
-    #[test]
-    fn unexpected_from_token_seq_end() {
+    fn unexpected_from_canonical_token_seq() {
         assert_eq!(
-            Unexpected::from(&Token::SeqEnd),
+            Unexpected::from(&CanonicalToken::Seq { len: None }),
+            Unexpected::Seq
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_tuple() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Tuple { len: 0 }),
+            Unexpected::Seq
+        )
+    }
+
+    #[test]
+    fn unexpected_from_canonical_token_seq_end() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::SeqEnd),
             Unexpected::Other("SeqEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_end() {
+    fn unexpected_from_canonical_token_tuple_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleEnd),
+            Unexpected::from(&CanonicalToken::TupleEnd),
             Unexpected::Other("TupleEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_struct() {
+    fn unexpected_from_canonical_token_tuple_struct() {
         assert_eq!(
-            Unexpected::from(&Token::TupleStruct {
+            Unexpected::from(&CanonicalToken::TupleStruct {
                 name: "foo",
                 len: 0
             }),
@@ -2535,17 +2357,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_tuple_struct_end() {
+    fn unexpected_from_canonical_token_tuple_struct_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleStructEnd),
+            Unexpected::from(&CanonicalToken::TupleStructEnd),
             Unexpected::Other("TupleStructEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_tuple_variant() {
+    fn unexpected_from_canonical_token_tuple_variant() {
         assert_eq!(
-            Unexpected::from(&Token::TupleVariant {
+            Unexpected::from(&CanonicalToken::TupleVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2556,46 +2378,49 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_tuple_variant_end() {
+    fn unexpected_from_canonical_token_tuple_variant_end() {
         assert_eq!(
-            Unexpected::from(&Token::TupleVariantEnd),
+            Unexpected::from(&CanonicalToken::TupleVariantEnd),
             Unexpected::Other("TupleVariantEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_map() {
-        assert_eq!(Unexpected::from(&Token::Map { len: None }), Unexpected::Map)
+    fn unexpected_from_canonical_token_map() {
+        assert_eq!(
+            Unexpected::from(&CanonicalToken::Map { len: None }),
+            Unexpected::Map
+        )
     }
 
     #[test]
-    fn unexpected_from_token_map_end() {
+    fn unexpected_from_canonical_token_map_end() {
         assert_eq!(
-            Unexpected::from(&Token::MapEnd),
+            Unexpected::from(&CanonicalToken::MapEnd),
             Unexpected::Other("MapEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_field() {
+    fn unexpected_from_canonical_token_field() {
         assert_eq!(
-            Unexpected::from(&Token::Field("foo")),
+            Unexpected::from(&CanonicalToken::Field("foo")),
             Unexpected::Other("Field")
         )
     }
 
     #[test]
-    fn unexpected_from_token_skipped_field() {
+    fn unexpected_from_canonical_token_skipped_field() {
         assert_eq!(
-            Unexpected::from(&Token::SkippedField("foo")),
+            Unexpected::from(&CanonicalToken::SkippedField("foo")),
             Unexpected::Other("SkippedField")
         )
     }
 
     #[test]
-    fn unexpected_from_token_struct() {
+    fn unexpected_from_canonical_token_struct() {
         assert_eq!(
-            Unexpected::from(&Token::Struct {
+            Unexpected::from(&CanonicalToken::Struct {
                 name: "foo",
                 len: 0
             }),
@@ -2604,17 +2429,17 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_struct_end() {
+    fn unexpected_from_canonical_token_struct_end() {
         assert_eq!(
-            Unexpected::from(&Token::StructEnd),
+            Unexpected::from(&CanonicalToken::StructEnd),
             Unexpected::Other("StructEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_struct_variant() {
+    fn unexpected_from_canonical_token_struct_variant() {
         assert_eq!(
-            Unexpected::from(&Token::StructVariant {
+            Unexpected::from(&CanonicalToken::StructVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2625,96 +2450,88 @@ mod tests {
     }
 
     #[test]
-    fn unexpected_from_token_struct_variant_end() {
+    fn unexpected_from_canonical_token_struct_variant_end() {
         assert_eq!(
-            Unexpected::from(&Token::StructVariantEnd),
+            Unexpected::from(&CanonicalToken::StructVariantEnd),
             Unexpected::Other("StructVariantEnd")
         )
     }
 
     #[test]
-    fn unexpected_from_token_unordered() {
-        assert_eq!(
-            Unexpected::from(&Token::Unordered(&[])),
-            Unexpected::Other("unordered tokens")
-        )
-    }
-
-    #[test]
-    fn iter_empty() {
-        let mut iter = Iter::new(Tokens(Vec::new()));
+    fn owning_iter_empty() {
+        let mut iter = OwningIter::new(Tokens(Vec::new()));
 
         assert_none!(iter.next());
     }
 
     #[test]
-    fn iter_one_token() {
-        let mut iter = Iter::new(Tokens(vec![Token::Bool(true)]));
+    fn owning_iter_one_token() {
+        let mut iter = OwningIter::new(Tokens(vec![CanonicalToken::Bool(true)]));
 
-        assert_some_eq!(iter.next(), &Token::Bool(true));
+        assert_some_eq!(iter.next(), &CanonicalToken::Bool(true));
         assert_none!(iter.next());
     }
 
     #[test]
-    fn iter_multiple_tokens() {
-        let mut iter = Iter::new(Tokens(vec![
-            Token::Bool(true),
-            Token::U64(42),
-            Token::Str("foo".to_owned()),
+    fn owning_iter_multiple_tokens() {
+        let mut iter = OwningIter::new(Tokens(vec![
+            CanonicalToken::Bool(true),
+            CanonicalToken::U64(42),
+            CanonicalToken::Str("foo".to_owned()),
         ]));
 
-        assert_some_eq!(iter.next(), &Token::Bool(true));
-        assert_some_eq!(iter.next(), &Token::U64(42));
-        assert_some_eq!(iter.next(), &Token::Str("foo".to_owned()));
+        assert_some_eq!(iter.next(), &CanonicalToken::Bool(true));
+        assert_some_eq!(iter.next(), &CanonicalToken::U64(42));
+        assert_some_eq!(iter.next(), &CanonicalToken::Str("foo".to_owned()));
         assert_none!(iter.next());
     }
 
     #[test]
-    fn iter_empty_debug() {
-        let iter = Iter::new(Tokens(Vec::new()));
+    fn owning_iter_empty_debug() {
+        let iter = OwningIter::new(Tokens(Vec::new()));
 
-        assert_eq!(format!("{:?}", iter), "Iter([])")
+        assert_eq!(format!("{:?}", iter), "OwningIter([])")
     }
 
     #[test]
-    fn iter_uniterated_debug() {
-        let iter = Iter::new(Tokens(vec![
-            Token::Bool(true),
-            Token::U64(42),
-            Token::Str("foo".to_owned()),
+    fn owning_iter_uniterated_debug() {
+        let iter = OwningIter::new(Tokens(vec![
+            CanonicalToken::Bool(true),
+            CanonicalToken::U64(42),
+            CanonicalToken::Str("foo".to_owned()),
         ]));
 
         assert_eq!(
             format!("{:?}", iter),
-            "Iter([Bool(true), U64(42), Str(\"foo\")])"
+            "OwningIter([Bool(true), U64(42), Str(\"foo\")])"
         )
     }
 
     #[test]
-    fn iter_partially_iterated_debug() {
-        let mut iter = Iter::new(Tokens(vec![
-            Token::Bool(true),
-            Token::U64(42),
-            Token::Str("foo".to_owned()),
+    fn owning_iter_partially_iterated_debug() {
+        let mut iter = OwningIter::new(Tokens(vec![
+            CanonicalToken::Bool(true),
+            CanonicalToken::U64(42),
+            CanonicalToken::Str("foo".to_owned()),
         ]));
 
         assert_some!(iter.next());
 
-        assert_eq!(format!("{:?}", iter), "Iter([U64(42), Str(\"foo\")])")
+        assert_eq!(format!("{:?}", iter), "OwningIter([U64(42), Str(\"foo\")])")
     }
 
     #[test]
-    fn iter_fully_iterated_debug() {
-        let mut iter = Iter::new(Tokens(vec![
-            Token::Bool(true),
-            Token::U64(42),
-            Token::Str("foo".to_owned()),
+    fn owning_iter_fully_iterated_debug() {
+        let mut iter = OwningIter::new(Tokens(vec![
+            CanonicalToken::Bool(true),
+            CanonicalToken::U64(42),
+            CanonicalToken::Str("foo".to_owned()),
         ]));
 
         assert_some!(iter.next());
         assert_some!(iter.next());
         assert_some!(iter.next());
 
-        assert_eq!(format!("{:?}", iter), "Iter([])")
+        assert_eq!(format!("{:?}", iter), "OwningIter([])")
     }
 }
