@@ -1775,6 +1775,14 @@ mod tests {
     }
 
     #[test]
+    fn tokens_unordered_empty_nested() {
+        assert_eq!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unordered(&[])]]), Token::Unit]
+        );
+    }
+
+    #[test]
     fn tokens_unordered_empty_at_end() {
         assert_eq!(
             Tokens(vec![CanonicalToken::Unit,]),
