@@ -5556,4 +5556,60 @@ mod tests {
             "duplicate field foo"
         );
     }
+
+    #[test]
+    fn error_expected_end_token_seq() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Seq),
+            Error::ExpectedSeqEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Tuple),
+            Error::ExpectedTupleEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleStruct),
+            Error::ExpectedTupleStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_tuple_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::TupleVariant),
+            Error::ExpectedTupleVariantEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_map() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Map),
+            Error::ExpectedMapEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::Struct),
+            Error::ExpectedStructEnd
+        );
+    }
+
+    #[test]
+    fn error_expected_end_token_struct_variant() {
+        assert_eq!(
+            Error::expected_end_token(crate::de::EndToken::StructVariant),
+            Error::ExpectedStructVariantEnd
+        );
+    }
 }
