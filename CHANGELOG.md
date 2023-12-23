@@ -16,6 +16,7 @@
 ### Removed
 - `From<Token>` implementation for `serde::de::Unexpected`.
 - `PartialEq` implementation for `Token`.
+- `Display` implementation for `Token`.
 - Dependency on `hashbrown` crate.
 
 ## 0.6.0 - 2023-11-19

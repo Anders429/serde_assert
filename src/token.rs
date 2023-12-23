@@ -15,10 +15,7 @@ use alloc::{
 };
 use core::{
     fmt,
-    fmt::{
-        Debug,
-        Display,
-    },
+    fmt::Debug,
     marker::PhantomData,
     mem::ManuallyDrop,
     ptr::NonNull,
@@ -867,12 +864,6 @@ pub enum Token {
     /// [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
     /// [`Serializer`]: crate::Serializer
     Unordered(&'static [&'static [Token]]),
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{self:?}")
-    }
 }
 
 /// An enumeration of all tokens that can be emitted by the [`Serializer`].
