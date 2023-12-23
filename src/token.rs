@@ -1607,6 +1607,7 @@ mod tests {
         vec::Vec,
     };
     use claims::{
+        assert_matches,
         assert_none,
         assert_some,
         assert_some_eq,
@@ -1763,6 +1764,303 @@ mod tests {
                 &[Token::Unit, Token::U8(4)],
             ])]
         );
+    }
+
+    #[test]
+    fn token_from_canonical_token_bool() {
+        assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i8() {
+        assert_matches!(Token::from(CanonicalToken::I8(42)), Token::I8(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i16() {
+        assert_matches!(Token::from(CanonicalToken::I16(42)), Token::I16(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i32() {
+        assert_matches!(Token::from(CanonicalToken::I32(42)), Token::I32(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i64() {
+        assert_matches!(Token::from(CanonicalToken::I64(42)), Token::I64(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_i128() {
+        assert_matches!(Token::from(CanonicalToken::I128(42)), Token::I128(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u8() {
+        assert_matches!(Token::from(CanonicalToken::U8(42)), Token::U8(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u16() {
+        assert_matches!(Token::from(CanonicalToken::U16(42)), Token::U16(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u32() {
+        assert_matches!(Token::from(CanonicalToken::U32(42)), Token::U32(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u64() {
+        assert_matches!(Token::from(CanonicalToken::U64(42)), Token::U64(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_u128() {
+        assert_matches!(Token::from(CanonicalToken::U128(42)), Token::U128(42))
+    }
+
+    #[test]
+    fn token_from_canonical_token_f32() {
+        assert_matches!(Token::from(CanonicalToken::F32(42.9)), Token::F32(_))
+    }
+
+    #[test]
+    fn token_from_canonical_token_f64() {
+        assert_matches!(Token::from(CanonicalToken::F64(42.9)), Token::F64(_))
+    }
+
+    #[test]
+    fn token_from_canonical_token_char() {
+        assert_matches!(Token::from(CanonicalToken::Char('a')), Token::Char('a'))
+    }
+
+    #[test]
+    fn token_from_canonical_token_str() {
+        assert_matches!(
+            Token::from(CanonicalToken::Str("foo".to_owned())),
+            Token::Str(_)
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_bytes() {
+        assert_matches!(
+            Token::from(CanonicalToken::Bytes(b"foo".to_vec())),
+            Token::Bytes(_)
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_none() {
+        assert_matches!(Token::from(CanonicalToken::None), Token::None)
+    }
+
+    #[test]
+    fn token_from_canonical_token_some() {
+        assert_matches!(Token::from(CanonicalToken::Some), Token::Some)
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit() {
+        assert_matches!(Token::from(CanonicalToken::Unit), Token::Unit)
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::UnitStruct { name: "foo" }),
+            Token::UnitStruct { name: "foo" }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_unit_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::UnitVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }),
+            Token::UnitVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_newtype_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::NewtypeStruct { name: "foo" }),
+            Token::NewtypeStruct { name: "foo" }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_newtype_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::NewtypeVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }),
+            Token::NewtypeVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar"
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_seq() {
+        assert_matches!(
+            Token::from(CanonicalToken::Seq { len: Some(42) }),
+            Token::Seq { len: Some(42) }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_seq_end() {
+        assert_matches!(Token::from(CanonicalToken::SeqEnd), Token::SeqEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple() {
+        assert_matches!(
+            Token::from(CanonicalToken::Tuple { len: 42 }),
+            Token::Tuple { len: 42 }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_end() {
+        assert_matches!(Token::from(CanonicalToken::TupleEnd), Token::TupleEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleStruct {
+                name: "foo",
+                len: 42
+            }),
+            Token::TupleStruct {
+                name: "foo",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_struct_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleStructEnd),
+            Token::TupleStructEnd
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }),
+            Token::TupleVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_tuple_variant_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::TupleVariantEnd),
+            Token::TupleVariantEnd
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_map() {
+        assert_matches!(
+            Token::from(CanonicalToken::Map { len: Some(42) }),
+            Token::Map { len: Some(42) }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_map_end() {
+        assert_matches!(Token::from(CanonicalToken::MapEnd), Token::MapEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_field() {
+        assert_matches!(
+            Token::from(CanonicalToken::Field("foo")),
+            Token::Field("foo")
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_skipped_field() {
+        assert_matches!(
+            Token::from(CanonicalToken::SkippedField("foo")),
+            Token::SkippedField("foo")
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct() {
+        assert_matches!(
+            Token::from(CanonicalToken::Struct {
+                name: "foo",
+                len: 42
+            }),
+            Token::Struct {
+                name: "foo",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_end() {
+        assert_matches!(Token::from(CanonicalToken::StructEnd), Token::StructEnd)
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_variant() {
+        assert_matches!(
+            Token::from(CanonicalToken::StructVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }),
+            Token::StructVariant {
+                name: "foo",
+                variant_index: 42,
+                variant: "bar",
+                len: 42
+            }
+        )
+    }
+
+    #[test]
+    fn token_from_canonical_token_struct_variant_end() {
+        assert_matches!(
+            Token::from(CanonicalToken::StructVariantEnd),
+            Token::StructVariantEnd
+        )
     }
 
     #[test]
