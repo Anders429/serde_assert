@@ -1799,6 +1799,33 @@ mod tests {
     }
 
     #[test]
+    fn tokens_end_within_unordered_more_tokens() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unit, Token::Unit]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered_nested_empty() {
+        assert_eq!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[Token::Unit, Token::Unordered(&[])]])]
+        );
+    }
+
+    #[test]
+    fn tokens_end_within_unordered_nested_nonempty() {
+        assert_ne!(
+            Tokens(vec![CanonicalToken::Unit,]),
+            [Token::Unordered(&[&[
+                Token::Unit,
+                Token::Unordered(&[&[Token::Unit, Token::Unit], &[Token::Unit]])
+            ]])]
+        );
+    }
+
+    #[test]
     fn token_from_canonical_token_bool() {
         assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true))
     }
