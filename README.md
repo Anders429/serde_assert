@@ -15,7 +15,7 @@ This library provides a [`Serializer`](https://docs.rs/serde_assert/latest/serde
 The examples below use the [`claims`](https://crates.io/crates/claims) crate for convenient assertions.
 
 ### Testing Serialization
-The [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) returns [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing the serialization of a value. The returned `Tokens` can be checked to be equal to an expected value.
+The [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) returns a sequence of [`Token`](https://docs.rs/serde_assert/latest/serde_assert/struct.Token.html)s representing the serialization of a value. The returned `Token`s can be checked to be equal to an expected value.
 
 ```rust
 use claims::assert_ok_eq;
@@ -31,7 +31,7 @@ assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 ```
 
 ### Testing Deserialization
-A [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) is constructed by providing [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) to be deserialized into a value.
+A [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) is constructed by providing a sequence of [`Token`](https://docs.rs/serde_assert/latest/serde_assert/struct.Token.html)s to be deserialized into a value.
 
 ```rust
 use claims::assert_ok_eq;
