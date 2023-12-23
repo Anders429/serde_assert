@@ -17,7 +17,7 @@ The examples below use the [`claims`](https://crates.io/crates/claims) crate for
 ### Testing Serialization
 The [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) returns [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing the serialization of a value. The returned `Tokens` can be checked to be equal to an expected value.
 
-```
+```rust
 use claims::assert_ok_eq;
 use serde::Serialize;
 use serde_assert::{
@@ -33,7 +33,7 @@ assert_ok_eq!(true.serialize(&serializer), [Token::Bool(true)]);
 ### Testing Deserialization
 A [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) is constructed by providing [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) to be deserialized into a value.
 
-```
+```rust
 use claims::assert_ok_eq;
 use serde::Deserialize;
 use serde_assert::{
