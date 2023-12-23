@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2023-12-23
 ### Added
 - `Tokens` now implements `IntoIterator<Item = Token>`.
 - `&Tokens` now implements `IntoIterator<Item = &Token>`.
