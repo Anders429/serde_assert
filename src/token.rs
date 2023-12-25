@@ -1217,6 +1217,7 @@ pub struct Tokens(pub(crate) Vec<CanonicalToken>);
 struct Context {
     current: slice::Iter<'static, Token>,
     remaining: Vec<&'static [Token]>,
+    #[allow(clippy::struct_field_names)] // Acceptable, as the name refers to the contained type.
     nested_context: Option<Box<Context>>,
 }
 
@@ -1232,7 +1233,7 @@ impl Context {
 
     /// Nests this context within the contexts in the given split, returning those contexts.
     fn nest(self, mut split: Split) -> Vec<Self> {
-        for context in split.contexts.iter_mut() {
+        for context in &mut split.contexts {
             context.nested_context = Some(Box::new(self.clone()));
         }
         split.contexts
@@ -1374,18 +1375,16 @@ impl TryFrom<Context> for Split {
 
     fn try_from(value: Context) -> Result<Self, Self::Error> {
         if let Ok(mut split) = Split::try_from(value.remaining.as_slice()) {
-            for context in split.contexts.iter_mut() {
+            for context in &mut split.contexts {
                 context.nested_context = value.nested_context.clone();
             }
             Ok(split)
+        } else if let Some(nested_context) = value.nested_context {
+            Ok(Split {
+                contexts: vec![*nested_context],
+            })
         } else {
-            if let Some(nested_context) = value.nested_context {
-                Ok(Split {
-                    contexts: vec![*nested_context],
-                })
-            } else {
-                Err(())
-            }
+            Err(())
         }
     }
 }
@@ -1405,7 +1404,7 @@ where
     fn eq(&self, other: &T) -> bool {
         let mut self_iter = self.0.iter();
 
-        for token in other.into_iter() {
+        for token in other {
             if !match CanonicalToken::try_from(token.clone()) {
                 Ok(canonical_token) => {
                     if let Some(self_token) = self_iter.next() {
