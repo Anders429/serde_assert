@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+### Changed
+- `PartialEq` implementation for `Tokens` now avoids unnecessary iterator cloning when checking against `Unordered` `Token`s.
+
 ## 0.7.0 - 2023-12-23
 ### Added
 - `Tokens` now implements `IntoIterator<Item = Token>`.
