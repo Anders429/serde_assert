@@ -8,6 +8,7 @@
 //! [`Serializer`]: crate::Serializer
 
 use alloc::{
+    boxed::Box,
     slice,
     string::String,
     vec,
@@ -1212,223 +1213,187 @@ impl<'a> From<&'a CanonicalToken> for Unexpected<'a> {
 #[derive(Clone, Debug)]
 pub struct Tokens(pub(crate) Vec<CanonicalToken>);
 
-/// A specific context when traversing through a possible path in the given tokens.
-///
-/// This will either be in the main iterator of tokens (`Iterator`) or in the context of a
-/// (possibly nested) `Unordered` token.
 #[derive(Clone, Debug)]
-enum StateContext<'a, T> {
-    Iterator(T),
-    Unordered {
-        current: slice::Iter<'a, Token>,
-        remaining: Vec<&'static [Token]>,
-    },
+struct Context {
+    current: slice::Iter<'static, Token>,
+    remaining: Vec<&'static [Token]>,
+    #[allow(clippy::struct_field_names)] // Acceptable, as the name refers to the contained type.
+    nested_context: Option<Box<Context>>,
 }
 
-/// A current state when traversing through a possible path in the given tokens.
-#[derive(Clone, Debug)]
-struct State<'a, T>(Vec<StateContext<'a, T>>);
+impl Context {
+    /// Creates a new context from the given parts.
+    fn new(current: slice::Iter<'static, Token>, remaining: Vec<&'static [Token]>) -> Self {
+        Self {
+            current,
+            remaining,
+            nested_context: None,
+        }
+    }
 
-impl<'a, T> State<'a, T>
-where
-    T: Clone + Iterator<Item = &'a Token>,
-{
-    // TODO: Want to remove the clone requirement, and just share the same base iterator for all
-    // branching paths. Maybe there's a better way to structure this?
+    /// Nests this context within the contexts in the given split, returning those contexts.
+    fn nest(self, mut split: Split) -> Vec<Self> {
+        for context in &mut split.contexts {
+            context.nested_context = Some(Box::new(self.clone()));
+        }
+        split.contexts
+    }
+}
 
-    /// Splits along several possible paths in an unordered set of tokens, creating a new `State`
-    /// for each path.
+impl Iterator for Context {
+    type Item = &'static Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.current.next()
+    }
+}
+
+#[derive(Debug)]
+struct Split {
+    contexts: Vec<Context>,
+}
+
+impl Split {
+    /// Returns whether a path exists through these split tokens using the given iterator.
     ///
-    /// The other untraveled paths are aded into the `remaining` field of `StateContext::Unordered`
-    /// for future processing.
+    /// This will consume exactly the correct number of tokens from the given iterator.
+    fn search<'a, I>(mut self, mut tokens: I) -> bool
+    where
+        I: Iterator<Item = &'a CanonicalToken>,
+    {
+        while let Some(canonical_tokens) = self.next() {
+            if canonical_tokens.is_empty() {
+                // All contexts have ended, and therefore no path could be found.
+                return false;
+            }
+            if let Some(token) = tokens.next() {
+                self.contexts = self
+                    .contexts
+                    .into_iter()
+                    .zip(canonical_tokens)
+                    .filter_map(|(context, canonical_token)| {
+                        if *token == canonical_token {
+                            Some(context)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+            } else {
+                // Both sides had a different number of canonical tokens.
+                return false;
+            }
+        }
+
+        // We have found the end of the split tokens without failing to find equality in tokens.
+        // This means that at least one path was found, and therefore the search succeeded.
+        true
+    }
+}
+
+impl Iterator for Split {
+    /// Returns a token from each remaining context, removing contexts in-place if they split.
     ///
-    /// This function also steps into each path using the `input` token.
-    fn split(self, paths: &[&'static [Token]], input: &CanonicalToken) -> Vec<Self> {
-        (0..paths.len())
-            .map(move |index| {
-                let mut new_state = self.clone();
-                new_state.0.push(StateContext::Unordered {
-                    current: paths[index].iter(),
-                    remaining: paths
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, tokens)| if i == index { None } else { Some(*tokens) })
-                        .collect(),
-                });
-                new_state
+    /// If this returns an empty `Vec`, that means there were no contexts remaining when it was
+    /// called. If this returns `None`, that means that all remaining contexts have hit the end of
+    /// their tokens.
+    type Item = Vec<CanonicalToken>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.contexts.is_empty() {
+            return Some(Vec::new());
+        }
+
+        let mut result = Vec::with_capacity(self.contexts.len());
+
+        let mut index = 0;
+        while index < self.contexts.len() {
+            match self.contexts[index]
+                .next()
+                .cloned()
+                .map(CanonicalToken::try_from)
+            {
+                Some(Ok(canonical_token)) => {
+                    result.push(canonical_token);
+                    index += 1;
+                }
+                Some(Err(unordered_tokens)) => {
+                    // Split and nest.
+                    let context = self.contexts.swap_remove(index);
+                    if let Ok(split) = unordered_tokens.try_into() {
+                        self.contexts.extend(context.nest(split));
+                    }
+                }
+                None => {
+                    // Split from remaining.
+                    let context = self.contexts.swap_remove(index);
+                    if let Ok(split) = Split::try_from(context) {
+                        self.contexts.extend(split.contexts);
+                    }
+                }
+            }
+        }
+
+        if result.is_empty() {
+            // No tokens returned, which means we are done processing this split.
+            None
+        } else {
+            Some(result)
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a [&'static [Token]]> for Split {
+    type Error = ();
+
+    fn try_from(value: &'a [&'static [Token]]) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            Err(())
+        } else {
+            Ok(Self {
+                contexts: (0..value.len())
+                    .map(|index| {
+                        Context::new(
+                            value[index].iter(),
+                            value
+                                .iter()
+                                .enumerate()
+                                .filter_map(
+                                    |(i, tokens)| if i == index { None } else { Some(*tokens) },
+                                )
+                                .collect(),
+                        )
+                    })
+                    .collect(),
             })
-            .flat_map(|state| state.feed(input))
-            .collect()
-    }
-
-    /// Travels along all possible paths through `token`.
-    ///
-    /// This will branch if the next token is `Unordered`. In other cases, it just returns 0 or 1
-    /// state.
-    fn feed(mut self, input: &CanonicalToken) -> Vec<Self> {
-        // Obtain the next token from the contexts.
-        //
-        // This is done by obtaining the token from the last context that contains tokens.
-        // If a context does not contain tokens, it is popped.
-        // If it is in the middle of an unordered set, we create new states with the remaining
-        // tokens and process those.
-        if let Some(context) = self.0.last_mut() {
-            match context {
-                StateContext::Iterator(tokens) => {
-                    if let Some(token) = tokens.next() {
-                        match CanonicalToken::try_from(token.clone()) {
-                            Ok(canonical_token) => {
-                                // Compare tokens.
-                                if *input == canonical_token {
-                                    vec![self]
-                                } else {
-                                    Vec::new()
-                                }
-                            }
-                            Err(UnorderedTokens(unordered_tokens)) => {
-                                // Split.
-                                if unordered_tokens.is_empty() {
-                                    // This unordered tokens is empty, so we move on to processing
-                                    // the next token.
-                                    self.feed(input)
-                                } else {
-                                    self.split(unordered_tokens, input)
-                                }
-                            }
-                        }
-                    } else {
-                        // No tokens left. Pop this iterator and reprocess the token.
-                        self.0.pop();
-                        self.feed(input)
-                    }
-                }
-                StateContext::Unordered {
-                    current: tokens,
-                    remaining,
-                } => {
-                    if let Some(token) = tokens.next() {
-                        match CanonicalToken::try_from(token.clone()) {
-                            Ok(canonical_token) => {
-                                // Compare tokens.
-                                if *input == canonical_token {
-                                    vec![self]
-                                } else {
-                                    Vec::new()
-                                }
-                            }
-                            Err(UnorderedTokens(unordered_tokens)) => {
-                                // Split.
-                                if unordered_tokens.is_empty() {
-                                    // This unordered tokens is empty, so we move on to processing
-                                    // the next token.
-                                    self.feed(input)
-                                } else {
-                                    self.split(unordered_tokens, input)
-                                }
-                            }
-                        }
-                    } else {
-                        // No tokens left. Pop, possibly split, and reprocess the token.
-                        let remaining = remaining.clone();
-                        self.0.pop();
-                        if remaining.is_empty() {
-                            self.feed(input)
-                        } else {
-                            // For each remaining, create a new state with it as the current.
-                            self.split(remaining.as_slice(), input)
-                        }
-                    }
-                }
-            }
-        } else {
-            // There are no more tokens, so we return no new states.
-            Vec::new()
         }
     }
+}
 
-    /// Check whether there are any remaining `CanonicalToken`s to be extracted.
-    ///
-    /// This will consume tokens, so don't call this unless you don't care about preserving the
-    /// remaining tokens.
-    fn is_empty(&mut self) -> bool {
-        if let Some(context) = self.0.last_mut() {
-            match context {
-                StateContext::Iterator(tokens) => {
-                    if let Some(token) = tokens.next() {
-                        match CanonicalToken::try_from(token.clone()) {
-                            Ok(_) => {
-                                // Found a token, so not empty.
-                                false
-                            }
-                            Err(UnorderedTokens(unordered_tokens)) => {
-                                // We only need to check if there is at least one canonical token
-                                // contained here.
-                                if let Some((first, remaining)) = unordered_tokens.split_first() {
-                                    self.0.push(StateContext::Unordered {
-                                        current: first.iter(),
-                                        remaining: remaining.to_vec(),
-                                    });
-                                    self.0.is_empty()
-                                } else {
-                                    // This unordered tokens is empty, so proceed to the next token.
-                                    self.is_empty()
-                                }
-                            }
-                        }
-                    } else {
-                        // No tokens left in this context; pop it and move to the next one.
-                        self.0.pop();
-                        self.is_empty()
-                    }
-                }
-                StateContext::Unordered {
-                    current: tokens,
-                    remaining,
-                } => {
-                    if let Some(token) = tokens.next() {
-                        match CanonicalToken::try_from(token.clone()) {
-                            Ok(_) => {
-                                // Found a token, so not empty.
-                                false
-                            }
-                            Err(UnorderedTokens(unordered_tokens)) => {
-                                // We only need to check if there is at least one canonical token
-                                // contained here.
-                                if let Some((first, remaining)) = unordered_tokens.split_first() {
-                                    self.0.push(StateContext::Unordered {
-                                        current: first.iter(),
-                                        remaining: remaining.to_vec(),
-                                    });
-                                    self.0.is_empty()
-                                } else {
-                                    // This unordered tokens is empty, so proceed to the next token.
-                                    self.is_empty()
-                                }
-                            }
-                        }
-                    } else {
-                        // No tokens left. Pop, proceed down another remaining unordered path if
-                        // possible, and reprocess the token.
-                        let remaining = remaining.clone();
-                        self.0.pop();
-                        if let Some((first, remaining)) = remaining.split_first() {
-                            self.0.push(StateContext::Unordered {
-                                current: first.iter(),
-                                remaining: remaining.to_vec(),
-                            });
-                            self.0.is_empty()
-                        } else {
-                            // No more unordered tokens, so proceed to the next context.
-                            self.is_empty()
-                        }
-                    }
-                }
+impl TryFrom<Context> for Split {
+    type Error = ();
+
+    fn try_from(value: Context) -> Result<Self, Self::Error> {
+        if let Ok(mut split) = Split::try_from(value.remaining.as_slice()) {
+            for context in &mut split.contexts {
+                context.nested_context = value.nested_context.clone();
             }
+            Ok(split)
+        } else if let Some(nested_context) = value.nested_context {
+            Ok(Split {
+                contexts: vec![*nested_context],
+            })
         } else {
-            // No contexts left to check. This means there are no more tokens, and therefore the
-            // state is empty.
-            true
+            Err(())
         }
+    }
+}
+
+impl TryFrom<UnorderedTokens> for Split {
+    type Error = ();
+
+    fn try_from(value: UnorderedTokens) -> Result<Self, Self::Error> {
+        value.0.try_into()
     }
 }
 
@@ -1437,25 +1402,32 @@ where
     for<'a> &'a T: IntoIterator<Item = &'a Token>,
 {
     fn eq(&self, other: &T) -> bool {
-        let mut states = vec![State(vec![StateContext::Iterator(
-            other.into_iter().collect::<Vec<_>>().into_iter(),
-        )])];
+        let mut self_iter = self.0.iter();
 
-        for token in &self.0 {
-            let mut new_states = Vec::new();
-            for state in states {
-                new_states.extend(state.feed(token));
+        for token in other {
+            if !match CanonicalToken::try_from(token.clone()) {
+                Ok(canonical_token) => {
+                    if let Some(self_token) = self_iter.next() {
+                        canonical_token == *self_token
+                    } else {
+                        // Both sides had a different number of canonical tokens.
+                        false
+                    }
+                }
+                Err(unordered_tokens) => Split::try_from(unordered_tokens)
+                    .map(|split| split.search(&mut self_iter))
+                    .unwrap_or(true),
+            } {
+                return false;
             }
-            states = new_states;
         }
 
-        if let Some(state) = states.first_mut() {
-            // Verify whether any tokens are left in `other`.
-            state.is_empty()
-        } else {
-            // No states, which means no path through `other` could be found.
-            false
+        if self_iter.next().is_some() {
+            // Both sides had a different number of canonical tokens.
+            return false;
         }
+
+        true
     }
 }
 
