@@ -1116,8 +1116,8 @@ impl From<CanonicalToken> for Token {
     }
 }
 
-impl<'a> From<&'a CanonicalToken> for Unexpected<'a> {
-    fn from(token: &'a CanonicalToken) -> Self {
+impl<'a> From<&'a mut CanonicalToken> for Unexpected<'a> {
+    fn from(token: &'a mut CanonicalToken) -> Self {
         match token {
             CanonicalToken::Bool(v) => Unexpected::Bool(*v),
             CanonicalToken::I8(v) => Unexpected::Signed((*v).into()),
@@ -1469,9 +1469,9 @@ pub(crate) struct OwningIter<'a> {
     /// Immutable references to the `Token`s in this buffer can exist within the lifetime `'a`.
     buf: NonNull<CanonicalToken>,
     /// A pointer to the current position in iteration.
-    ptr: *const CanonicalToken,
+    ptr: *mut CanonicalToken,
     /// A pointer to the end of the allocated buffer.
-    end: *const CanonicalToken,
+    end: *mut CanonicalToken,
     /// The capacity of the underlying allocation.
     ///
     /// This is only used for deallocating when the struct is dropped.
@@ -1494,9 +1494,9 @@ impl OwningIter<'_> {
         Self {
             // SAFETY: The pointer used by the `Vec` in `Tokens` is guaranteed to not be null.
             buf: unsafe { NonNull::new_unchecked(tokens.0.as_mut_ptr()) },
-            ptr: tokens.0.as_ptr(),
+            ptr: tokens.0.as_mut_ptr(),
             // SAFETY: The resulting pointer is one byte past the end of the allocated object.
-            end: unsafe { tokens.0.as_ptr().add(tokens.0.len()) },
+            end: unsafe { tokens.0.as_mut_ptr().add(tokens.0.len()) },
             cap: tokens.0.capacity(),
 
             lifetime: PhantomData,
@@ -1520,7 +1520,7 @@ impl OwningIter<'_> {
 }
 
 impl<'a> Iterator for OwningIter<'a> {
-    type Item = &'a CanonicalToken;
+    type Item = &'a mut CanonicalToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.ptr == self.end {
@@ -1533,7 +1533,7 @@ impl<'a> Iterator for OwningIter<'a> {
             self.ptr = unsafe { self.ptr.add(1) };
             // SAFETY: The pointed-at object is guaranteed to be a valid `Token` that will live for
             // the lifetime `'a`.
-            Some(unsafe { &*current })
+            Some(unsafe { &mut *current })
         }
     }
 }
@@ -2105,7 +2105,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_bool() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Bool(true)),
+            Unexpected::from(&mut CanonicalToken::Bool(true)),
             Unexpected::Bool(true)
         )
     }
@@ -2113,7 +2113,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_i8() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::I8(42)),
+            Unexpected::from(&mut CanonicalToken::I8(42)),
             Unexpected::Signed(42)
         )
     }
@@ -2121,7 +2121,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_i16() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::I16(42)),
+            Unexpected::from(&mut CanonicalToken::I16(42)),
             Unexpected::Signed(42)
         )
     }
@@ -2129,7 +2129,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_i32() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::I32(42)),
+            Unexpected::from(&mut CanonicalToken::I32(42)),
             Unexpected::Signed(42)
         )
     }
@@ -2137,7 +2137,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_i64() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::I64(42)),
+            Unexpected::from(&mut CanonicalToken::I64(42)),
             Unexpected::Signed(42)
         )
     }
@@ -2145,7 +2145,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_i128() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::I128(42)),
+            Unexpected::from(&mut CanonicalToken::I128(42)),
             Unexpected::Other("i128")
         )
     }
@@ -2153,7 +2153,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_u8() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::U8(42)),
+            Unexpected::from(&mut CanonicalToken::U8(42)),
             Unexpected::Unsigned(42)
         )
     }
@@ -2161,7 +2161,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_u16() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::U16(42)),
+            Unexpected::from(&mut CanonicalToken::U16(42)),
             Unexpected::Unsigned(42)
         )
     }
@@ -2169,7 +2169,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_u32() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::U32(42)),
+            Unexpected::from(&mut CanonicalToken::U32(42)),
             Unexpected::Unsigned(42)
         )
     }
@@ -2177,7 +2177,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_u64() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::U64(42)),
+            Unexpected::from(&mut CanonicalToken::U64(42)),
             Unexpected::Unsigned(42)
         )
     }
@@ -2185,7 +2185,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_u128() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::U128(42)),
+            Unexpected::from(&mut CanonicalToken::U128(42)),
             Unexpected::Other("u128")
         )
     }
@@ -2193,7 +2193,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_f32() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::F32(42.)),
+            Unexpected::from(&mut CanonicalToken::F32(42.)),
             Unexpected::Float(42.)
         )
     }
@@ -2201,7 +2201,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_f64() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::F64(42.)),
+            Unexpected::from(&mut CanonicalToken::F64(42.)),
             Unexpected::Float(42.)
         )
     }
@@ -2209,7 +2209,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_char() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Char('a')),
+            Unexpected::from(&mut CanonicalToken::Char('a')),
             Unexpected::Char('a')
         )
     }
@@ -2217,7 +2217,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_str() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Str("foo".to_owned())),
+            Unexpected::from(&mut CanonicalToken::Str("foo".to_owned())),
             Unexpected::Str("foo")
         )
     }
@@ -2225,30 +2225,39 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_bytes() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Bytes(b"foo".to_vec())),
+            Unexpected::from(&mut CanonicalToken::Bytes(b"foo".to_vec())),
             Unexpected::Bytes(b"foo")
         )
     }
 
     #[test]
     fn unexpected_from_canonical_token_some() {
-        assert_eq!(Unexpected::from(&CanonicalToken::Some), Unexpected::Option)
+        assert_eq!(
+            Unexpected::from(&mut CanonicalToken::Some),
+            Unexpected::Option
+        )
     }
 
     #[test]
     fn unexpected_from_canonical_token_none() {
-        assert_eq!(Unexpected::from(&CanonicalToken::None), Unexpected::Option)
+        assert_eq!(
+            Unexpected::from(&mut CanonicalToken::None),
+            Unexpected::Option
+        )
     }
 
     #[test]
     fn unexpected_from_canonical_token_unit() {
-        assert_eq!(Unexpected::from(&CanonicalToken::Unit), Unexpected::Unit)
+        assert_eq!(
+            Unexpected::from(&mut CanonicalToken::Unit),
+            Unexpected::Unit
+        )
     }
 
     #[test]
     fn unexpected_from_canonical_token_unit_struct() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::UnitStruct { name: "foo" }),
+            Unexpected::from(&mut CanonicalToken::UnitStruct { name: "foo" }),
             Unexpected::Unit
         )
     }
@@ -2256,7 +2265,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_unit_variant() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::UnitVariant {
+            Unexpected::from(&mut CanonicalToken::UnitVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2268,7 +2277,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_newtype_struct() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::NewtypeStruct { name: "foo" }),
+            Unexpected::from(&mut CanonicalToken::NewtypeStruct { name: "foo" }),
             Unexpected::NewtypeStruct
         )
     }
@@ -2276,7 +2285,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_newtype_variant() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::NewtypeVariant {
+            Unexpected::from(&mut CanonicalToken::NewtypeVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar"
@@ -2288,7 +2297,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_seq() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Seq { len: None }),
+            Unexpected::from(&mut CanonicalToken::Seq { len: None }),
             Unexpected::Seq
         )
     }
@@ -2296,7 +2305,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Tuple { len: 0 }),
+            Unexpected::from(&mut CanonicalToken::Tuple { len: 0 }),
             Unexpected::Seq
         )
     }
@@ -2304,7 +2313,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_seq_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::SeqEnd),
+            Unexpected::from(&mut CanonicalToken::SeqEnd),
             Unexpected::Other("SeqEnd")
         )
     }
@@ -2312,7 +2321,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::TupleEnd),
+            Unexpected::from(&mut CanonicalToken::TupleEnd),
             Unexpected::Other("TupleEnd")
         )
     }
@@ -2320,7 +2329,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple_struct() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::TupleStruct {
+            Unexpected::from(&mut CanonicalToken::TupleStruct {
                 name: "foo",
                 len: 0
             }),
@@ -2331,7 +2340,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple_struct_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::TupleStructEnd),
+            Unexpected::from(&mut CanonicalToken::TupleStructEnd),
             Unexpected::Other("TupleStructEnd")
         )
     }
@@ -2339,7 +2348,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple_variant() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::TupleVariant {
+            Unexpected::from(&mut CanonicalToken::TupleVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2352,7 +2361,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_tuple_variant_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::TupleVariantEnd),
+            Unexpected::from(&mut CanonicalToken::TupleVariantEnd),
             Unexpected::Other("TupleVariantEnd")
         )
     }
@@ -2360,7 +2369,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_map() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Map { len: None }),
+            Unexpected::from(&mut CanonicalToken::Map { len: None }),
             Unexpected::Map
         )
     }
@@ -2368,7 +2377,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_map_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::MapEnd),
+            Unexpected::from(&mut CanonicalToken::MapEnd),
             Unexpected::Other("MapEnd")
         )
     }
@@ -2376,7 +2385,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_field() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Field("foo")),
+            Unexpected::from(&mut CanonicalToken::Field("foo")),
             Unexpected::Other("Field")
         )
     }
@@ -2384,7 +2393,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_skipped_field() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::SkippedField("foo")),
+            Unexpected::from(&mut CanonicalToken::SkippedField("foo")),
             Unexpected::Other("SkippedField")
         )
     }
@@ -2392,7 +2401,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_struct() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::Struct {
+            Unexpected::from(&mut CanonicalToken::Struct {
                 name: "foo",
                 len: 0
             }),
@@ -2403,7 +2412,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_struct_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::StructEnd),
+            Unexpected::from(&mut CanonicalToken::StructEnd),
             Unexpected::Other("StructEnd")
         )
     }
@@ -2411,7 +2420,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_struct_variant() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::StructVariant {
+            Unexpected::from(&mut CanonicalToken::StructVariant {
                 name: "foo",
                 variant_index: 0,
                 variant: "bar",
@@ -2424,7 +2433,7 @@ mod tests {
     #[test]
     fn unexpected_from_canonical_token_struct_variant_end() {
         assert_eq!(
-            Unexpected::from(&CanonicalToken::StructVariantEnd),
+            Unexpected::from(&mut CanonicalToken::StructVariantEnd),
             Unexpected::Other("StructVariantEnd")
         )
     }
@@ -2440,7 +2449,7 @@ mod tests {
     fn owning_iter_one_token() {
         let mut iter = OwningIter::new(Tokens(vec![CanonicalToken::Bool(true)]));
 
-        assert_some_eq!(iter.next(), &CanonicalToken::Bool(true));
+        assert_some_eq!(iter.next(), &mut CanonicalToken::Bool(true));
         assert_none!(iter.next());
     }
 
@@ -2452,9 +2461,9 @@ mod tests {
             CanonicalToken::Str("foo".to_owned()),
         ]));
 
-        assert_some_eq!(iter.next(), &CanonicalToken::Bool(true));
-        assert_some_eq!(iter.next(), &CanonicalToken::U64(42));
-        assert_some_eq!(iter.next(), &CanonicalToken::Str("foo".to_owned()));
+        assert_some_eq!(iter.next(), &mut CanonicalToken::Bool(true));
+        assert_some_eq!(iter.next(), &mut CanonicalToken::U64(42));
+        assert_some_eq!(iter.next(), &mut CanonicalToken::Str("foo".to_owned()));
         assert_none!(iter.next());
     }
 

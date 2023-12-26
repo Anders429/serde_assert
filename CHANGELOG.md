@@ -4,7 +4,7 @@
 ### Changed
 - `PartialEq` implementation for `Tokens` now avoids unnecessary iterator cloning when checking against `Unordered` `Token`s.
 - Lowered MSRV to `1.56.0`.
-- Deserializing self-describing types with `Str` or `Bytes` `Token`s now deserializes as borrowed.
+- Deserializing `Str` and `Bytes` as owned now reuses the existing allocation.
 
 ## 0.7.0 - 2023-12-23
 ### Added
