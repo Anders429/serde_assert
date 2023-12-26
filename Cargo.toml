@@ -14,9 +14,6 @@ keywords = ["serde", "testing", "serialization", "deserialization", "test"]
 [dependencies]
 serde = {version = "1.0.152", default-features = false, features = ["alloc"]}
 
-[build-dependencies]
-serde = {version = "1.0.152", default-features = false}
-
 [dev-dependencies]
 claims = "0.7.1"
 serde_bytes = "0.11.8"
