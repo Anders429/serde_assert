@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 - 2023-12-26
 ### Changed
 - `PartialEq` implementation for `Tokens` now avoids unnecessary iterator cloning when checking against `Unordered` `Token`s.
 - Lowered MSRV to `1.56.0`.
