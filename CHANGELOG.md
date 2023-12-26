@@ -16,7 +16,7 @@
 - The internals of `Tokens` are no longer public. `Tokens` can no longer be constructed by user code, and is now only returned by the `Serializer`.
 - Comparison with a `Tokens` can now be done with any type that implements `IntoIterator<Item = &Token>`.
 - `de::Builder::build()` now only requires `&self` instead of `&mut self`.
-- `Error::ExpectedToken` variant has been replaced by `Error::ExpectedSeqEnd`, `Error::ExpectedTupleEnd`, ``Error::ExpectedTupleStructEnd`, `Error::ExpectedTupleVariantEnd`, `Error::ExpectedMapEnd`, `Error::ExpectedStructEnd`, and `Error::ExpectedStructVariantEnd` variants.
+- `Error::ExpectedToken` variant has been replaced by `Error::ExpectedSeqEnd`, `Error::ExpectedTupleEnd`, `Error::ExpectedTupleStructEnd`, `Error::ExpectedTupleVariantEnd`, `Error::ExpectedMapEnd`, `Error::ExpectedStructEnd`, and `Error::ExpectedStructVariantEnd` variants.
 ### Removed
 - `From<Token>` implementation for `serde::de::Unexpected`.
 - `PartialEq` implementation for `Token`.
@@ -42,7 +42,7 @@
 
 ## 0.2.0 - 2023-01-16
 ### Added
-- `SerializeStructAs``enum` and accompanying `Builder::serialize_struct_as()` method for specifying whether `struct`s should be serialized as `serde` struct or sequence types.
+- `SerializeStructAs` `enum` and accompanying `Builder::serialize_struct_as()` method for specifying whether `struct`s should be serialized as `serde` struct or sequence types.
 - `SerializeStruct` type to provide a more specialized `serde::SerializeStruct` implementation.
 ### Changed
 - `Deserializer::deserialize_struct` can now interpret both `Struct` and `Seq` `Token`s.
