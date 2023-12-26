@@ -123,8 +123,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             CanonicalToken::F32(v) => visitor.visit_f32(*v),
             CanonicalToken::F64(v) => visitor.visit_f64(*v),
             CanonicalToken::Char(v) => visitor.visit_char(*v),
-            CanonicalToken::Str(v) => visitor.visit_string(v.clone()),
-            CanonicalToken::Bytes(v) => visitor.visit_byte_buf(v.clone()),
+            CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Bytes(v) => visitor.visit_bytes(v),
             CanonicalToken::None => visitor.visit_none(),
             CanonicalToken::Some => visitor.visit_some(self),
             CanonicalToken::Unit | CanonicalToken::UnitStruct { .. } => visitor.visit_unit(),
@@ -1719,25 +1719,11 @@ mod tests {
                     Ok(Any::Str(v.to_owned()))
                 }
 
-                fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-                where
-                    E: serde::de::Error,
-                {
-                    Ok(Any::Str(v))
-                }
-
                 fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
                 where
                     E: serde::de::Error,
                 {
                     Ok(Any::Bytes(v.to_owned()))
-                }
-
-                fn visit_byte_buf<E>(self, v: vec::Vec<u8>) -> Result<Self::Value, E>
-                where
-                    E: serde::de::Error,
-                {
-                    Ok(Any::Bytes(v))
                 }
 
                 fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
