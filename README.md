@@ -7,9 +7,9 @@
 [![MSRV](https://img.shields.io/badge/rustc-1.63.0+-yellow.svg)](#minimum-supported-rust-version)
 [![License](https://img.shields.io/crates/l/serde_assert)](#license)
 
-Testing library for [`serde`](https://crates.io/crates/serde) [`Serialize`](https://docs.rs/serde/1.0.152/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/1.0.152/serde/trait.Deserialize.html) implementations.
+Testing library for [`serde`](https://crates.io/crates/serde) [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) implementations.
 
-This library provides a [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) and [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) to be used in writing unit tests to assert the behavior of manual [`Serialize`](https://docs.rs/serde/1.0.152/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/1.0.152/serde/trait.Deserialize.html) implementations, respectively. The implementation behavior can be verified by using [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing an arbitrary serialized state.
+This library provides a [`Serializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Serializer.html) and [`Deserializer`](https://docs.rs/serde_assert/latest/serde_assert/struct.Deserializer.html) to be used in writing unit tests to assert the behavior of manual [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) implementations, respectively. The implementation behavior can be verified by using [`Tokens`](https://docs.rs/serde_assert/latest/serde_assert/struct.Tokens.html) representing an arbitrary serialized state.
 
 ## Usage
 The examples below use the [`claims`](https://crates.io/crates/claims) crate for convenient assertions.
