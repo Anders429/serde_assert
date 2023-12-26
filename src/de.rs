@@ -1555,7 +1555,6 @@ mod tests {
         assert_ok,
         assert_ok_eq,
     };
-    use hashbrown::HashMap;
     use serde::{
         de,
         de::{
@@ -1570,6 +1569,7 @@ mod tests {
     };
     use serde_bytes::ByteBuf;
     use serde_derive::Deserialize;
+    use std::collections::HashMap;
 
     #[derive(Debug, PartialEq)]
     enum Any {

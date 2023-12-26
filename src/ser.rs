@@ -743,10 +743,6 @@ mod tests {
         vec,
     };
     use claims::assert_ok_eq;
-    use hashbrown::{
-        HashMap,
-        HashSet,
-    };
     use serde::ser::{
         Error as _,
         Serialize,
@@ -754,6 +750,10 @@ mod tests {
     };
     use serde_bytes::Bytes;
     use serde_derive::Serialize;
+    use std::collections::{
+        HashMap,
+        HashSet,
+    };
 
     #[test]
     fn serialize_bool() {

@@ -665,12 +665,12 @@ pub enum Token {
     /// # Example
     /// ``` rust
     /// use claims::assert_ok_eq;
-    /// use hashbrown::HashMap;
     /// use serde::Serialize;
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
     /// };
+    /// use std::collections::HashMap;
     ///
     /// let serializer = Serializer::builder().build();
     ///
@@ -834,12 +834,12 @@ pub enum Token {
     /// # Example
     /// ``` rust
     /// use claims::assert_ok_eq;
-    /// use hashbrown::HashMap;
     /// use serde::Serialize;
     /// use serde_assert::{
     ///     Serializer,
     ///     Token,
     /// };
+    /// use std::collections::HashMap;
     ///
     /// let serializer = Serializer::builder().build();
     ///
@@ -862,7 +862,7 @@ pub enum Token {
     /// );
     /// ```
     ///
-    /// [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
+    /// [`HashSet`]: std::collections::HashSet
     /// [`Serializer`]: crate::Serializer
     Unordered(&'static [&'static [Token]]),
 }
