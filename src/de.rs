@@ -1481,13 +1481,13 @@ impl Display for Error {
             Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
-            Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {expected}, found {unexpected}"),
-            Self::InvalidValue(unexpected, expected) => write!(f, "invalid value: expected {expected}, found {unexpected}"),
-            Self::InvalidLength(length, expected) => write!(f, "invalid length {length}, expected {expected}"),
-            Self::UnknownVariant(variant, expected) => write!(f, "unknown variant {variant}, expected one of {expected:?}"),
-            Self::UnknownField(field, expected) => write!(f, "unknown field {field}, expected one of {expected:?}"),
-            Self::MissingField(field) => write!(f, "missing field {field}"),
-            Self::DuplicateField(field) => write!(f, "duplicate field {field}"),
+            Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {}, found {}", expected, unexpected),
+            Self::InvalidValue(unexpected, expected) => write!(f, "invalid value: expected {}, found {}", expected, unexpected),
+            Self::InvalidLength(length, expected) => write!(f, "invalid length {}, expected {}", length, expected),
+            Self::UnknownVariant(variant, expected) => write!(f, "unknown variant {}, expected one of {:?}", variant, expected),
+            Self::UnknownField(field, expected) => write!(f, "unknown field {}, expected one of {:?}", field, expected),
+            Self::MissingField(field) => write!(f, "missing field {}", field),
+            Self::DuplicateField(field) => write!(f, "duplicate field {}", field),
         }
     }
 }
@@ -1555,7 +1555,6 @@ mod tests {
         assert_ok,
         assert_ok_eq,
     };
-    use hashbrown::HashMap;
     use serde::{
         de,
         de::{
@@ -1570,6 +1569,7 @@ mod tests {
     };
     use serde_bytes::ByteBuf;
     use serde_derive::Deserialize;
+    use std::collections::HashMap;
 
     #[derive(Debug, PartialEq)]
     enum Any {

@@ -32,12 +32,12 @@
 //!
 //! ```
 //! use claims::assert_ok_eq;
-//! use hashbrown::HashSet;
 //! use serde::Serialize;
 //! use serde_assert::{
 //!     Serializer,
 //!     Token,
 //! };
+//! use std::collections::HashSet;
 //!
 //! let serializer = Serializer::builder().build();
 //!
@@ -102,7 +102,7 @@
 //!
 //! [`claims`]: https://docs.rs/claims/
 //! [`Deserialize`]: serde::Deserialize
-//! [`HashSet`]: https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html
+//! [`HashSet`]: std::collections::HashSet
 //! [`Serialize`]: serde::Serialize
 //! [`Serialize::serialize()`]: serde::Serialize::serialize()
 
@@ -110,6 +110,8 @@
 #![warn(clippy::pedantic)]
 
 extern crate alloc;
+#[cfg(any(test, doc))]
+extern crate std;
 
 pub mod de;
 pub mod ser;
