@@ -1376,7 +1376,7 @@ impl TryFrom<Context> for Split {
     fn try_from(value: Context) -> Result<Self, Self::Error> {
         if let Ok(mut split) = Split::try_from(value.remaining.as_slice()) {
             for context in &mut split.contexts {
-                context.nested_context = value.nested_context.clone();
+                context.nested_context.clone_from(&value.nested_context);
             }
             Ok(split)
         } else if let Some(nested_context) = value.nested_context {

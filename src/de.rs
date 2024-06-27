@@ -59,14 +59,14 @@ use serde::{
 /// The following options can be configured on the [`Builder`]:
 ///
 /// - [`is_human_readable()`]: Determines whether the deserializer will interpret the input tokens
-/// in a readable or compact format. Useful for complicated structs wishing to provide different
-/// outputs depending on the readability of the serialization type.
+///   in a readable or compact format. Useful for complicated structs wishing to provide different
+///   outputs depending on the readability of the serialization type.
 /// - [`self_describing()`]: Determines whether the deserialization should interpret the input
-/// tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
-/// directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
-/// will result in an error.
+///   tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
+///   directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
+///   will result in an error.
 /// - [`zero_copy()`]: Defines whether zero-copy deserialization should be permitted by the
-///  `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
+///   `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
 ///
 /// # Example
 /// ``` rust
