@@ -695,6 +695,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let token = self.next_token()?;
         match token {
             CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Bytes(v) => visitor.visit_bytes(v),
             CanonicalToken::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
@@ -3384,6 +3385,54 @@ mod tests {
             Token::Field("foo"),
             Token::U32(42),
             Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct {
+                foo: 42,
+                bar: false,
+            }
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_string_fields() {
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Str("foo".to_owned()),
+            Token::U32(42),
+            Token::Str("bar".to_owned()),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct {
+                foo: 42,
+                bar: false,
+            }
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_byte_fields() {
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Bytes(b"foo".to_vec()),
+            Token::U32(42),
+            Token::Bytes(b"bar".to_vec()),
             Token::Bool(false),
             Token::StructEnd,
         ])
