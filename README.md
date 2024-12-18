@@ -3,7 +3,7 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Anders429/serde_assert/test.yaml?branch=master)](https://github.com/Anders429/serde_assert/actions/workflows/test.yaml)
 [![crates.io](https://img.shields.io/crates/v/serde_assert)](https://crates.io/crates/serde_assert)
 [![docs.rs](https://docs.rs/serde_assert/badge.svg)](https://docs.rs/serde_assert)
-[![MSRV](https://img.shields.io/badge/rustc-1.56.0+-yellow.svg)](#minimum-supported-rust-version)
+[![MSRV](https://img.shields.io/badge/rustc-1.61.0+-yellow.svg)](#minimum-supported-rust-version)
 [![License](https://img.shields.io/crates/l/serde_assert)](#license)
 
 Testing library for [`serde`](https://crates.io/crates/serde) [`Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html) and [`Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html) implementations.
@@ -55,7 +55,7 @@ While some users may find that the smaller API of `serde_test` is sufficient for
 - Sophisticated comparison of serialized [`Token`](https://docs.rs/serde_assert/latest/serde_assert/struct.Token.html) sequences, including allowing testing of types whose serialized form can include items in arbitrary order, such as when serializing a [`HashSet`](https://docs.rs/hashbrown/latest/hashbrown/struct.HashSet.html).
 
 ## Minimum Supported Rust Version
-This crate is guaranteed to compile on stable `rustc 1.56.0` and up.
+This crate is guaranteed to compile on stable `rustc 1.61.0` and up.
 
 ## License
 This project is licensed under either of
