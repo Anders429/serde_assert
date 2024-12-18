@@ -98,7 +98,7 @@ pub struct Deserializer<'a> {
     zero_copy: bool,
 }
 
-impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -777,7 +777,7 @@ struct SeqAccess<'a, 'b> {
     ended: bool,
 }
 
-impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
+impl<'de> de::SeqAccess<'de> for SeqAccess<'_, 'de> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -820,7 +820,7 @@ struct MapAccess<'a, 'b> {
     ended: bool,
 }
 
-impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
+impl<'de> de::MapAccess<'de> for MapAccess<'_, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -889,7 +889,7 @@ struct VariantAccess<'a, 'b> {
     deserializer: &'a mut Deserializer<'b>,
 }
 
-impl<'a, 'de> de::VariantAccess<'de> for VariantAccess<'a, 'de> {
+impl<'de> de::VariantAccess<'de> for VariantAccess<'_, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -944,7 +944,7 @@ struct EnumDeserializer<'a, 'b> {
     deserializer: &'a mut Deserializer<'b>,
 }
 
-impl<'a, 'de> de::Deserializer<'de> for EnumDeserializer<'a, 'de> {
+impl<'de> de::Deserializer<'de> for EnumDeserializer<'_, 'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1483,13 +1483,13 @@ impl Display for Error {
             Self::UnsupportedEnumDeserializerMethod => f.write_str("use of unsupported enum deserializer method"),
             Self::NotSelfDescribing => f.write_str("attempted to deserialize as self-describing when deserializer is not set as self-describing"),
             Self::Custom(s) => f.write_str(s),
-            Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {}, found {}", expected, unexpected),
-            Self::InvalidValue(unexpected, expected) => write!(f, "invalid value: expected {}, found {}", expected, unexpected),
-            Self::InvalidLength(length, expected) => write!(f, "invalid length {}, expected {}", length, expected),
-            Self::UnknownVariant(variant, expected) => write!(f, "unknown variant {}, expected one of {:?}", variant, expected),
-            Self::UnknownField(field, expected) => write!(f, "unknown field {}, expected one of {:?}", field, expected),
-            Self::MissingField(field) => write!(f, "missing field {}", field),
-            Self::DuplicateField(field) => write!(f, "duplicate field {}", field),
+            Self::InvalidType(unexpected, expected) => write!(f, "invalid type: expected {expected}, found {unexpected}"),
+            Self::InvalidValue(unexpected, expected) => write!(f, "invalid value: expected {expected}, found {unexpected}"),
+            Self::InvalidLength(length, expected) => write!(f, "invalid length {length}, expected {expected}"),
+            Self::UnknownVariant(variant, expected) => write!(f, "unknown variant {variant}, expected one of {expected:?}"),
+            Self::UnknownField(field, expected) => write!(f, "unknown field {field}, expected one of {expected:?}"),
+            Self::MissingField(field) => write!(f, "missing field {field}"),
+            Self::DuplicateField(field) => write!(f, "duplicate field {field}"),
         }
     }
 }
@@ -1771,7 +1771,7 @@ mod tests {
                         {
                             struct VariantVisitor;
 
-                            impl<'de> Visitor<'de> for VariantVisitor {
+                            impl Visitor<'_> for VariantVisitor {
                                 type Value = Variant;
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1870,7 +1870,7 @@ mod tests {
                         {
                             struct FieldVisitor;
 
-                            impl<'de> Visitor<'de> for FieldVisitor {
+                            impl Visitor<'_> for FieldVisitor {
                                 type Value = Field;
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2670,7 +2670,7 @@ mod tests {
         {
             struct StrVisitor;
 
-            impl<'de> Visitor<'de> for StrVisitor {
+            impl Visitor<'_> for StrVisitor {
                 type Value = Str;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2796,7 +2796,7 @@ mod tests {
         {
             struct BytesVisitor;
 
-            impl<'de> Visitor<'de> for BytesVisitor {
+            impl Visitor<'_> for BytesVisitor {
                 type Value = Bytes;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2972,7 +2972,7 @@ mod tests {
         {
             struct UnitVisitor;
 
-            impl<'de> Visitor<'de> for UnitVisitor {
+            impl Visitor<'_> for UnitVisitor {
                 type Value = Unit;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3830,7 +3830,7 @@ mod tests {
         {
             struct IdentifierVisitor;
 
-            impl<'de> Visitor<'de> for IdentifierVisitor {
+            impl Visitor<'_> for IdentifierVisitor {
                 type Value = Identifier;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3962,7 +3962,7 @@ mod tests {
         {
             struct EnumVariantVisitor;
 
-            impl<'de> Visitor<'de> for EnumVariantVisitor {
+            impl Visitor<'_> for EnumVariantVisitor {
                 type Value = EnumVariant;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4094,7 +4094,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4131,7 +4131,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4184,7 +4184,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4237,7 +4237,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4290,7 +4290,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4343,7 +4343,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4396,7 +4396,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4449,7 +4449,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4503,7 +4503,7 @@ mod tests {
         {
             struct U32EnumVariantVisitor;
 
-            impl<'de> Visitor<'de> for U32EnumVariantVisitor {
+            impl Visitor<'_> for U32EnumVariantVisitor {
                 type Value = U32EnumVariant;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4637,7 +4637,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4690,7 +4690,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4741,7 +4741,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4776,7 +4776,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4811,7 +4811,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4848,7 +4848,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4900,7 +4900,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4950,7 +4950,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4985,7 +4985,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5020,7 +5020,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5055,7 +5055,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5090,7 +5090,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5125,7 +5125,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5160,7 +5160,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5195,7 +5195,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5230,7 +5230,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5265,7 +5265,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5300,7 +5300,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5337,7 +5337,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5389,7 +5389,7 @@ mod tests {
             {
                 struct EnumVariantVisitor;
 
-                impl<'de> Visitor<'de> for EnumVariantVisitor {
+                impl Visitor<'_> for EnumVariantVisitor {
                     type Value = EnumVariant;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -5435,7 +5435,7 @@ mod tests {
             deserializer: &mut deserializer,
         };
 
-        assert!(enum_deserializer.is_human_readable())
+        assert!(enum_deserializer.is_human_readable());
     }
 
     #[test]
@@ -5445,7 +5445,7 @@ mod tests {
             deserializer: &mut deserializer,
         };
 
-        assert!(enum_deserializer.is_human_readable())
+        assert!(enum_deserializer.is_human_readable());
     }
 
     #[test]
@@ -5455,7 +5455,7 @@ mod tests {
             deserializer: &mut deserializer,
         };
 
-        assert!(!enum_deserializer.is_human_readable())
+        assert!(!enum_deserializer.is_human_readable());
     }
 
     #[test]
