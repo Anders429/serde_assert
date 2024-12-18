@@ -1807,72 +1807,72 @@ mod tests {
 
     #[test]
     fn token_from_canonical_token_bool() {
-        assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true))
+        assert_matches!(Token::from(CanonicalToken::Bool(true)), Token::Bool(true));
     }
 
     #[test]
     fn token_from_canonical_token_i8() {
-        assert_matches!(Token::from(CanonicalToken::I8(42)), Token::I8(42))
+        assert_matches!(Token::from(CanonicalToken::I8(42)), Token::I8(42));
     }
 
     #[test]
     fn token_from_canonical_token_i16() {
-        assert_matches!(Token::from(CanonicalToken::I16(42)), Token::I16(42))
+        assert_matches!(Token::from(CanonicalToken::I16(42)), Token::I16(42));
     }
 
     #[test]
     fn token_from_canonical_token_i32() {
-        assert_matches!(Token::from(CanonicalToken::I32(42)), Token::I32(42))
+        assert_matches!(Token::from(CanonicalToken::I32(42)), Token::I32(42));
     }
 
     #[test]
     fn token_from_canonical_token_i64() {
-        assert_matches!(Token::from(CanonicalToken::I64(42)), Token::I64(42))
+        assert_matches!(Token::from(CanonicalToken::I64(42)), Token::I64(42));
     }
 
     #[test]
     fn token_from_canonical_token_i128() {
-        assert_matches!(Token::from(CanonicalToken::I128(42)), Token::I128(42))
+        assert_matches!(Token::from(CanonicalToken::I128(42)), Token::I128(42));
     }
 
     #[test]
     fn token_from_canonical_token_u8() {
-        assert_matches!(Token::from(CanonicalToken::U8(42)), Token::U8(42))
+        assert_matches!(Token::from(CanonicalToken::U8(42)), Token::U8(42));
     }
 
     #[test]
     fn token_from_canonical_token_u16() {
-        assert_matches!(Token::from(CanonicalToken::U16(42)), Token::U16(42))
+        assert_matches!(Token::from(CanonicalToken::U16(42)), Token::U16(42));
     }
 
     #[test]
     fn token_from_canonical_token_u32() {
-        assert_matches!(Token::from(CanonicalToken::U32(42)), Token::U32(42))
+        assert_matches!(Token::from(CanonicalToken::U32(42)), Token::U32(42));
     }
 
     #[test]
     fn token_from_canonical_token_u64() {
-        assert_matches!(Token::from(CanonicalToken::U64(42)), Token::U64(42))
+        assert_matches!(Token::from(CanonicalToken::U64(42)), Token::U64(42));
     }
 
     #[test]
     fn token_from_canonical_token_u128() {
-        assert_matches!(Token::from(CanonicalToken::U128(42)), Token::U128(42))
+        assert_matches!(Token::from(CanonicalToken::U128(42)), Token::U128(42));
     }
 
     #[test]
     fn token_from_canonical_token_f32() {
-        assert_matches!(Token::from(CanonicalToken::F32(42.9)), Token::F32(_))
+        assert_matches!(Token::from(CanonicalToken::F32(42.9)), Token::F32(_));
     }
 
     #[test]
     fn token_from_canonical_token_f64() {
-        assert_matches!(Token::from(CanonicalToken::F64(42.9)), Token::F64(_))
+        assert_matches!(Token::from(CanonicalToken::F64(42.9)), Token::F64(_));
     }
 
     #[test]
     fn token_from_canonical_token_char() {
-        assert_matches!(Token::from(CanonicalToken::Char('a')), Token::Char('a'))
+        assert_matches!(Token::from(CanonicalToken::Char('a')), Token::Char('a'));
     }
 
     #[test]
@@ -1880,7 +1880,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Str("foo".to_owned())),
             Token::Str(_)
-        )
+        );
     }
 
     #[test]
@@ -1888,22 +1888,22 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Bytes(b"foo".to_vec())),
             Token::Bytes(_)
-        )
+        );
     }
 
     #[test]
     fn token_from_canonical_token_none() {
-        assert_matches!(Token::from(CanonicalToken::None), Token::None)
+        assert_matches!(Token::from(CanonicalToken::None), Token::None);
     }
 
     #[test]
     fn token_from_canonical_token_some() {
-        assert_matches!(Token::from(CanonicalToken::Some), Token::Some)
+        assert_matches!(Token::from(CanonicalToken::Some), Token::Some);
     }
 
     #[test]
     fn token_from_canonical_token_unit() {
-        assert_matches!(Token::from(CanonicalToken::Unit), Token::Unit)
+        assert_matches!(Token::from(CanonicalToken::Unit), Token::Unit);
     }
 
     #[test]
@@ -1911,7 +1911,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::UnitStruct { name: "foo" }),
             Token::UnitStruct { name: "foo" }
-        )
+        );
     }
 
     #[test]
@@ -1927,7 +1927,7 @@ mod tests {
                 variant_index: 42,
                 variant: "bar"
             }
-        )
+        );
     }
 
     #[test]
@@ -1935,7 +1935,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::NewtypeStruct { name: "foo" }),
             Token::NewtypeStruct { name: "foo" }
-        )
+        );
     }
 
     #[test]
@@ -1951,7 +1951,7 @@ mod tests {
                 variant_index: 42,
                 variant: "bar"
             }
-        )
+        );
     }
 
     #[test]
@@ -1959,12 +1959,12 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Seq { len: Some(42) }),
             Token::Seq { len: Some(42) }
-        )
+        );
     }
 
     #[test]
     fn token_from_canonical_token_seq_end() {
-        assert_matches!(Token::from(CanonicalToken::SeqEnd), Token::SeqEnd)
+        assert_matches!(Token::from(CanonicalToken::SeqEnd), Token::SeqEnd);
     }
 
     #[test]
@@ -1972,12 +1972,12 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Tuple { len: 42 }),
             Token::Tuple { len: 42 }
-        )
+        );
     }
 
     #[test]
     fn token_from_canonical_token_tuple_end() {
-        assert_matches!(Token::from(CanonicalToken::TupleEnd), Token::TupleEnd)
+        assert_matches!(Token::from(CanonicalToken::TupleEnd), Token::TupleEnd);
     }
 
     #[test]
@@ -1991,7 +1991,7 @@ mod tests {
                 name: "foo",
                 len: 42
             }
-        )
+        );
     }
 
     #[test]
@@ -1999,7 +1999,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::TupleStructEnd),
             Token::TupleStructEnd
-        )
+        );
     }
 
     #[test]
@@ -2017,7 +2017,7 @@ mod tests {
                 variant: "bar",
                 len: 42
             }
-        )
+        );
     }
 
     #[test]
@@ -2025,7 +2025,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::TupleVariantEnd),
             Token::TupleVariantEnd
-        )
+        );
     }
 
     #[test]
@@ -2033,12 +2033,12 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Map { len: Some(42) }),
             Token::Map { len: Some(42) }
-        )
+        );
     }
 
     #[test]
     fn token_from_canonical_token_map_end() {
-        assert_matches!(Token::from(CanonicalToken::MapEnd), Token::MapEnd)
+        assert_matches!(Token::from(CanonicalToken::MapEnd), Token::MapEnd);
     }
 
     #[test]
@@ -2046,7 +2046,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::Field("foo")),
             Token::Field("foo")
-        )
+        );
     }
 
     #[test]
@@ -2054,7 +2054,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::SkippedField("foo")),
             Token::SkippedField("foo")
-        )
+        );
     }
 
     #[test]
@@ -2068,12 +2068,12 @@ mod tests {
                 name: "foo",
                 len: 42
             }
-        )
+        );
     }
 
     #[test]
     fn token_from_canonical_token_struct_end() {
-        assert_matches!(Token::from(CanonicalToken::StructEnd), Token::StructEnd)
+        assert_matches!(Token::from(CanonicalToken::StructEnd), Token::StructEnd);
     }
 
     #[test]
@@ -2091,7 +2091,7 @@ mod tests {
                 variant: "bar",
                 len: 42
             }
-        )
+        );
     }
 
     #[test]
@@ -2099,7 +2099,7 @@ mod tests {
         assert_matches!(
             Token::from(CanonicalToken::StructVariantEnd),
             Token::StructVariantEnd
-        )
+        );
     }
 
     #[test]
@@ -2107,7 +2107,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Bool(true)),
             Unexpected::Bool(true)
-        )
+        );
     }
 
     #[test]
@@ -2115,7 +2115,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::I8(42)),
             Unexpected::Signed(42)
-        )
+        );
     }
 
     #[test]
@@ -2123,7 +2123,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::I16(42)),
             Unexpected::Signed(42)
-        )
+        );
     }
 
     #[test]
@@ -2131,7 +2131,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::I32(42)),
             Unexpected::Signed(42)
-        )
+        );
     }
 
     #[test]
@@ -2139,7 +2139,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::I64(42)),
             Unexpected::Signed(42)
-        )
+        );
     }
 
     #[test]
@@ -2147,7 +2147,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::I128(42)),
             Unexpected::Other("i128")
-        )
+        );
     }
 
     #[test]
@@ -2155,7 +2155,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::U8(42)),
             Unexpected::Unsigned(42)
-        )
+        );
     }
 
     #[test]
@@ -2163,7 +2163,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::U16(42)),
             Unexpected::Unsigned(42)
-        )
+        );
     }
 
     #[test]
@@ -2171,7 +2171,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::U32(42)),
             Unexpected::Unsigned(42)
-        )
+        );
     }
 
     #[test]
@@ -2179,7 +2179,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::U64(42)),
             Unexpected::Unsigned(42)
-        )
+        );
     }
 
     #[test]
@@ -2187,7 +2187,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::U128(42)),
             Unexpected::Other("u128")
-        )
+        );
     }
 
     #[test]
@@ -2195,7 +2195,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::F32(42.)),
             Unexpected::Float(42.)
-        )
+        );
     }
 
     #[test]
@@ -2203,7 +2203,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::F64(42.)),
             Unexpected::Float(42.)
-        )
+        );
     }
 
     #[test]
@@ -2211,7 +2211,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Char('a')),
             Unexpected::Char('a')
-        )
+        );
     }
 
     #[test]
@@ -2219,7 +2219,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Str("foo".to_owned())),
             Unexpected::Str("foo")
-        )
+        );
     }
 
     #[test]
@@ -2227,7 +2227,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Bytes(b"foo".to_vec())),
             Unexpected::Bytes(b"foo")
-        )
+        );
     }
 
     #[test]
@@ -2235,7 +2235,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Some),
             Unexpected::Option
-        )
+        );
     }
 
     #[test]
@@ -2243,7 +2243,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::None),
             Unexpected::Option
-        )
+        );
     }
 
     #[test]
@@ -2251,7 +2251,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Unit),
             Unexpected::Unit
-        )
+        );
     }
 
     #[test]
@@ -2259,7 +2259,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::UnitStruct { name: "foo" }),
             Unexpected::Unit
-        )
+        );
     }
 
     #[test]
@@ -2271,7 +2271,7 @@ mod tests {
                 variant: "bar"
             }),
             Unexpected::UnitVariant
-        )
+        );
     }
 
     #[test]
@@ -2279,7 +2279,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::NewtypeStruct { name: "foo" }),
             Unexpected::NewtypeStruct
-        )
+        );
     }
 
     #[test]
@@ -2291,7 +2291,7 @@ mod tests {
                 variant: "bar"
             }),
             Unexpected::NewtypeVariant
-        )
+        );
     }
 
     #[test]
@@ -2299,7 +2299,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Seq { len: None }),
             Unexpected::Seq
-        )
+        );
     }
 
     #[test]
@@ -2307,7 +2307,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Tuple { len: 0 }),
             Unexpected::Seq
-        )
+        );
     }
 
     #[test]
@@ -2315,7 +2315,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::SeqEnd),
             Unexpected::Other("SeqEnd")
-        )
+        );
     }
 
     #[test]
@@ -2323,7 +2323,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::TupleEnd),
             Unexpected::Other("TupleEnd")
-        )
+        );
     }
 
     #[test]
@@ -2334,7 +2334,7 @@ mod tests {
                 len: 0
             }),
             Unexpected::Other("TupleStruct")
-        )
+        );
     }
 
     #[test]
@@ -2342,7 +2342,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::TupleStructEnd),
             Unexpected::Other("TupleStructEnd")
-        )
+        );
     }
 
     #[test]
@@ -2355,7 +2355,7 @@ mod tests {
                 len: 0
             }),
             Unexpected::TupleVariant
-        )
+        );
     }
 
     #[test]
@@ -2363,7 +2363,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::TupleVariantEnd),
             Unexpected::Other("TupleVariantEnd")
-        )
+        );
     }
 
     #[test]
@@ -2371,7 +2371,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Map { len: None }),
             Unexpected::Map
-        )
+        );
     }
 
     #[test]
@@ -2379,7 +2379,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::MapEnd),
             Unexpected::Other("MapEnd")
-        )
+        );
     }
 
     #[test]
@@ -2387,7 +2387,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::Field("foo")),
             Unexpected::Other("Field")
-        )
+        );
     }
 
     #[test]
@@ -2395,7 +2395,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::SkippedField("foo")),
             Unexpected::Other("SkippedField")
-        )
+        );
     }
 
     #[test]
@@ -2406,7 +2406,7 @@ mod tests {
                 len: 0
             }),
             Unexpected::Other("Struct")
-        )
+        );
     }
 
     #[test]
@@ -2414,7 +2414,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::StructEnd),
             Unexpected::Other("StructEnd")
-        )
+        );
     }
 
     #[test]
@@ -2427,7 +2427,7 @@ mod tests {
                 len: 0
             }),
             Unexpected::StructVariant
-        )
+        );
     }
 
     #[test]
@@ -2435,7 +2435,7 @@ mod tests {
         assert_eq!(
             Unexpected::from(&mut CanonicalToken::StructVariantEnd),
             Unexpected::Other("StructVariantEnd")
-        )
+        );
     }
 
     #[test]
@@ -2471,7 +2471,7 @@ mod tests {
     fn owning_iter_empty_debug() {
         let iter = OwningIter::new(Tokens(Vec::new()));
 
-        assert_eq!(format!("{:?}", iter), "OwningIter([])")
+        assert_eq!(format!("{iter:?}"), "OwningIter([])");
     }
 
     #[test]
@@ -2483,9 +2483,9 @@ mod tests {
         ]));
 
         assert_eq!(
-            format!("{:?}", iter),
+            format!("{iter:?}"),
             "OwningIter([Bool(true), U64(42), Str(\"foo\")])"
-        )
+        );
     }
 
     #[test]
@@ -2498,7 +2498,7 @@ mod tests {
 
         assert_some!(iter.next());
 
-        assert_eq!(format!("{:?}", iter), "OwningIter([U64(42), Str(\"foo\")])")
+        assert_eq!(format!("{iter:?}"), "OwningIter([U64(42), Str(\"foo\")])");
     }
 
     #[test]
@@ -2513,6 +2513,6 @@ mod tests {
         assert_some!(iter.next());
         assert_some!(iter.next());
 
-        assert_eq!(format!("{:?}", iter), "OwningIter([])")
+        assert_eq!(format!("{iter:?}"), "OwningIter([])");
     }
 }
