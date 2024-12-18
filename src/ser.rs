@@ -111,13 +111,13 @@ pub enum SerializeStructAs {
 /// # Configuration
 /// The following options can be configured on the [`Builder`]:
 ///
-/// - [`is_human_readable()`]: Determines whether the serializer will serialize values in a
-/// readable format or a compact format. Useful for complicated structs wishing to provide
-/// different outputs depending on the readability of the serialization type.
+/// - [`is_human_readable()`]: Determines whether the serializer will serialize values in a readable
+///   format or a compact format. Useful for complicated structs wishing to provide different
+///   outputs depending on the readability of the serialization type.
 /// - [`serialize_struct_as()`]: Specifies how the serializer should serialize structs. Compact
-/// formats often serialize structs as sequences. By enabling this setting, tokens can be produced
-/// in this format, and can then be deserialized to ensure structs deserialized as sequences are
-/// deserialized correctly.
+///   formats often serialize structs as sequences. By enabling this setting, tokens can be produced
+///   in this format, and can then be deserialized to ensure structs deserialized as sequences are
+///   deserialized correctly.
 ///
 /// # Example
 ///

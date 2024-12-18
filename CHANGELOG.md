@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 - 2024-06-27
+### Added
+- `Deserializer::deserialize_identifier()` now deserializes `Token::Bytes` along with `Token::Str` and `Token::Field`.
+
 ## 0.7.1 - 2023-12-26
 ### Changed
 - `PartialEq` implementation for `Tokens` now avoids unnecessary iterator cloning when checking against `Unordered` `Token`s.

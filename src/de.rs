@@ -59,14 +59,14 @@ use serde::{
 /// The following options can be configured on the [`Builder`]:
 ///
 /// - [`is_human_readable()`]: Determines whether the deserializer will interpret the input tokens
-/// in a readable or compact format. Useful for complicated structs wishing to provide different
-/// outputs depending on the readability of the serialization type.
+///   in a readable or compact format. Useful for complicated structs wishing to provide different
+///   outputs depending on the readability of the serialization type.
 /// - [`self_describing()`]: Determines whether the deserialization should interpret the input
-/// tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
-/// directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
-/// will result in an error.
+///   tokens as self-describing, meaning the type the tokens should deserialize to can be discerned
+///   directly from the tokens themselves. If this is set to `false`, calls to [`deserialize_any()`]
+///   will result in an error.
 /// - [`zero_copy()`]: Defines whether zero-copy deserialization should be permitted by the
-///  `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
+///   `Deserializer`, allowing deserializations of strings and byte sequences to avoid allocations.
 ///
 /// # Example
 /// ``` rust
@@ -695,6 +695,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let token = self.next_token()?;
         match token {
             CanonicalToken::Str(v) => visitor.visit_str(v),
+            CanonicalToken::Bytes(v) => visitor.visit_bytes(v),
             CanonicalToken::Field(v) => visitor.visit_str(v),
             _ => Err(Self::Error::invalid_type((token).into(), &visitor)),
         }
@@ -3384,6 +3385,54 @@ mod tests {
             Token::Field("foo"),
             Token::U32(42),
             Token::Field("bar"),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct {
+                foo: 42,
+                bar: false,
+            }
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_string_fields() {
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Str("foo".to_owned()),
+            Token::U32(42),
+            Token::Str("bar".to_owned()),
+            Token::Bool(false),
+            Token::StructEnd,
+        ])
+        .build();
+
+        assert_ok_eq!(
+            Struct::deserialize(&mut deserializer),
+            Struct {
+                foo: 42,
+                bar: false,
+            }
+        );
+    }
+
+    #[test]
+    fn deserialize_struct_byte_fields() {
+        let mut deserializer = Deserializer::builder([
+            Token::Struct {
+                name: "Struct",
+                len: 2,
+            },
+            Token::Bytes(b"foo".to_vec()),
+            Token::U32(42),
+            Token::Bytes(b"bar".to_vec()),
             Token::Bool(false),
             Token::StructEnd,
         ])
